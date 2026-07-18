@@ -1,0 +1,10 @@
+// Grosor únicamente — después de noctalia.kdl para no pisar los colores.
+layout {
+    focus-ring {
+        width 2
+    }
+
+    border {
+        width 2
+    }
+}

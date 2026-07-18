@@ -1,0 +1,141 @@
+binds {
+
+    // ────────────── Keybindings ──────────────
+    // https://github.com/YaLTeR/niri/wiki/Configuration:-Key-Bindings
+
+    // ─── noctalia-shell ───
+    // https://docs.noctalia.dev/getting-started/keybinds/
+
+    Mod+Shift+ESCAPE                     { show-hotkey-overlay; }
+    Mod+Space                            hotkey-overlay-title="Launcher" { spawn-sh "qs -c noctalia-shell ipc call launcher toggle"; }
+    Mod+ALT+L                            hotkey-overlay-title="Lock screen" { spawn-sh "qs -c noctalia-shell ipc call lockScreen lock"; }
+    Mod+Shift+Q                          hotkey-overlay-title="Session menu" { spawn-sh "qs -c noctalia-shell ipc call sessionMenu toggle"; }
+    Mod+Shift+I                          allow-inhibiting=false hotkey-overlay-title="Wallpaper selector" { spawn-sh "qs -c noctalia-shell ipc call wallpaper toggle"; }
+    Mod+Shift+W                          allow-inhibiting=false hotkey-overlay-title="Next wallpaper" { spawn-sh "$HOME/.local/bin/next-wallpaper"; }
+
+    XF86AudioRaiseVolume                 allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume increase"; }
+    XF86AudioLowerVolume                 allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume decrease"; }
+    XF86AudioMute                        allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume muteOutput"; }
+    XF86AudioMicMute                     allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume muteInput"; }
+    XF86AudioNext                        allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media next"; }
+    XF86AudioPrev                        allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media previous"; }
+    XF86AudioPlay                        allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media playPause"; }
+    XF86AudioPause                       allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media playPause"; }
+    XF86MonBrightnessUp                  allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call brightness increase"; }
+    XF86MonBrightnessDown                allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call brightness decrease"; }
+
+    // ─── Applications ───
+
+    Mod+Q                                hotkey-overlay-title="Terminal" { spawn "kitty"; }
+    Mod+W                                hotkey-overlay-title="Browser" { spawn-sh "$HOME/.local/bin/zen-browser"; }
+    Mod+E                                hotkey-overlay-title="File manager" { spawn "nautilus"; }
+
+    // ─── Ventanas: foco y movimiento ───
+    // Portátil: Mod = foco, Mod+Shift = mover
+    // 60%:       K/L = izq/der, J/M = arriba/abajo
+
+    Mod+C                                hotkey-overlay-title="Close window" { close-window; }
+
+    Mod+Left                             { focus-column-left; }
+    Mod+Right                            { focus-column-right; }
+    Mod+Up                               { focus-window-up; }
+    Mod+Down                             { focus-window-down; }
+
+    Mod+K                                hotkey-overlay-title="Focus left (60%)" { focus-column-left; }
+    Mod+L                                hotkey-overlay-title="Focus right (60%)" { focus-column-right; }
+    Mod+J                                hotkey-overlay-title="Focus up (60%)" { focus-window-up; }
+    Mod+M                                hotkey-overlay-title="Focus down (60%)" { focus-window-down; }
+
+    Mod+Shift+Left                       hotkey-overlay-title="Move column left" { move-column-left; }
+    Mod+Shift+Right                      hotkey-overlay-title="Move column right" { move-column-right; }
+    Mod+Shift+Up                         hotkey-overlay-title="Move window up" { move-window-up; }
+    Mod+Shift+Down                       hotkey-overlay-title="Move window down" { move-window-down; }
+
+    Mod+Shift+K                          hotkey-overlay-title="Move column left (60%)" { move-column-left; }
+    Mod+Shift+L                          hotkey-overlay-title="Move column right (60%)" { move-column-right; }
+    Mod+Shift+J                          hotkey-overlay-title="Move window up (60%)" { move-window-up; }
+    Mod+Shift+M                          hotkey-overlay-title="Move window down (60%)" { move-window-down; }
+
+    Mod+Home                             { focus-column-first; }
+    Mod+End                              { focus-column-last; }
+    Mod+CTRL+Home                        { move-column-to-first; }
+    Mod+CTRL+End                         { move-column-to-last; }
+
+    // ─── Monitores ───
+
+    Mod+Alt+Left                         { focus-monitor-left; }
+    Mod+Alt+Right                        { focus-monitor-right; }
+    Mod+Alt+Up                           { focus-monitor-up; }
+    Mod+Alt+Down                         { focus-monitor-down; }
+
+    Mod+Shift+CTRL+Left                  { move-column-to-monitor-left; }
+    Mod+Shift+CTRL+Right                 { move-column-to-monitor-right; }
+    Mod+Shift+CTRL+Up                    { move-column-to-monitor-up; }
+    Mod+Shift+CTRL+Down                  { move-column-to-monitor-down; }
+
+    // ─── Workspaces ───
+
+    Mod+1                                { focus-workspace 1; }
+    Mod+2                                { focus-workspace 2; }
+    Mod+3                                { focus-workspace 3; }
+    Mod+4                                { focus-workspace 4; }
+    Mod+5                                { focus-workspace 5; }
+    Mod+6                                { focus-workspace 6; }
+    Mod+7                                { focus-workspace 7; }
+    Mod+8                                { focus-workspace 8; }
+    Mod+9                                { focus-workspace 9; }
+
+    Mod+Shift+1                          { move-column-to-workspace 1; }
+    Mod+Shift+2                          { move-column-to-workspace 2; }
+    Mod+Shift+3                          { move-column-to-workspace 3; }
+    Mod+Shift+4                          { move-column-to-workspace 4; }
+    Mod+Shift+5                          { move-column-to-workspace 5; }
+    Mod+Shift+6                          { move-column-to-workspace 6; }
+    Mod+Shift+7                          { move-column-to-workspace 7; }
+    Mod+Shift+8                          { move-column-to-workspace 8; }
+    Mod+Shift+9                          { move-column-to-workspace 9; }
+
+    Mod+TAB                              { focus-workspace-previous; }
+
+    Mod+WheelScrollDown                  cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp                    cooldown-ms=150 { focus-workspace-up; }
+    Mod+CTRL+WheelScrollDown             cooldown-ms=150 { move-column-to-workspace-down; }
+    Mod+CTRL+WheelScrollUp               cooldown-ms=150 { move-column-to-workspace-up; }
+
+    Mod+WheelScrollRight                 { focus-column-right; }
+    Mod+WheelScrollLeft                  { focus-column-left; }
+    Mod+CTRL+WheelScrollRight            { move-column-right; }
+    Mod+CTRL+WheelScrollLeft             { move-column-left; }
+
+    // ─── Layout ───
+
+    Mod+Minus                            { set-column-width "-10%"; }
+    Mod+Equal                            { set-column-width "+10%"; }
+    Mod+Shift+Minus                      { set-window-height "-10%"; }
+    Mod+Shift+Equal                      { set-window-height "+10%"; }
+
+    // ─── Column stack / tabs (como grupos de Hyprland) ───
+    // Super+V → meter ventana en la columna (apilar)
+    // Super+B → modo pestañas on/off en la columna
+    Mod+V                                hotkey-overlay-title="Stack into column" { consume-window-into-column; }
+    Mod+B                                hotkey-overlay-title="Toggle column tabs" { toggle-column-tabbed-display; }
+
+    // ─── Modos ───
+
+    Mod+T                                { toggle-window-floating; }
+    Mod+F                                hotkey-overlay-title="Fullscreen" { fullscreen-window; }
+    F11                                  hotkey-overlay-title="Fullscreen" { fullscreen-window; }
+    Mod+O                                repeat=false { toggle-overview; }
+
+    // ─── Screenshots ───
+
+    CTRL+Shift+1                         { screenshot; }
+    CTRL+Shift+2                         { screenshot-screen; }
+    CTRL+Shift+3                         { screenshot-window; }
+
+    // ─── Sistema ───
+
+    Mod+ESCAPE                           allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+    Mod+Shift+P                          { power-off-monitors; }
+    CTRL+ALT+Delete                      { quit; }
+}

@@ -1,0 +1,34 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+*.bak
+
+# Secrets & machine state (never commit)
+**/*.pem
+**/*token*
+**/*secret*
+**/*credentials*
+**/logins.db
+**/cookies.sqlite
+**/key4.db
+
+# Runtime / session junk if someone copies raw app dirs
+config/vesktop/sessionData/
+config/vesktop/Crashpad/
+config/vesktop/Singleton*
+config/zen/**/storage/
+config/zen/**/cache2/
+config/zen/**/*.sqlite
+config/zen/**/*.sqlite-wal
+config/zen/**/*.sqlite-shm
+config/zen/**/logins.json
+config/Code - OSS/
+config/code-oss/User/History/
+config/code-oss/User/globalStorage/
+config/code-oss/User/workspaceStorage/
+
+# Local install marker
+.dotfiles-installed
+.backup/

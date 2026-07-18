@@ -1,0 +1,23 @@
+    window-rule {
+        geometry-corner-radius 20 // Set every window radius to 20
+        clip-to-geometry true
+    }
+
+    // Zen: ventana normal en el workspace, sin maximizar a bordes (sin pseudo-F11).
+    window-rule {
+        match app-id="zen"
+        draw-border-with-background false
+        open-maximized false
+        open-maximized-to-edges false
+        open-fullscreen false
+    }
+
+    window-rule {
+        match app-id="vesktop"
+        draw-border-with-background false
+    }
+
+    layer-rule {
+        match namespace="^noctalia-wallpaper*"
+        place-within-backdrop true
+    }

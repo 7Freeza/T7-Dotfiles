@@ -1,0 +1,25 @@
+[config]
+
+[templates.fastfetch]
+input_path = "@@HOME@@/.config/noctalia/templates/fastfetch.jsonc"
+output_path = "@@HOME@@/.config/fastfetch/config.jsonc"
+
+[templates.aesthetic]
+input_path = "@@HOME@@/.config/noctalia/templates/aesthetic.env"
+output_path = "@@HOME@@/.config/aesthetic/noctalia.env"
+
+[templates.discord]
+input_path = "@@HOME@@/.config/noctalia/templates/discord.css"
+output_path = "@@HOME@@/.config/vesktop/themes/system24.theme.css"
+
+# VS Code / Code - OSS theme extension path may differ by version.
+# After installing the Noctalia VS Code theme extension, point output_path
+# at: <extensions>/noctalia.noctaliatheme-*/themes/NoctaliaTheme-color-theme.json
+[templates.vscode]
+input_path = "/etc/xdg/quickshell/noctalia-shell/Assets/Templates/code.json"
+output_path = "@@HOME@@/.vscode-oss/extensions/noctalia.noctaliatheme-0.0.5-universal/themes/NoctaliaTheme-color-theme.json"
+
+[templates.starship]
+input_path = "@@HOME@@/.config/noctalia/templates/starship.toml"
+output_path = "@@HOME@@/.cache/noctalia/starship-palette.toml"
+post_hook = "/etc/xdg/quickshell/noctalia-shell/Scripts/bash/template-apply.sh starship"
