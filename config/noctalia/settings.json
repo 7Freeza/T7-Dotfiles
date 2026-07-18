@@ -41,11 +41,11 @@
     "autoHideDelay": 500,
     "autoShowDelay": 150,
     "backgroundOpacity": 1,
-    "barType": "floating",
+    "barType": "simple",
     "capsuleColorKey": "none",
     "capsuleOpacity": 0,
     "contentPadding": 0,
-    "density": "comfortable",
+    "density": "compact",
     "displayMode": "always_visible",
     "enableExclusionZoneInset": true,
     "fontScale": 0.79,
@@ -236,7 +236,7 @@
   },
   "colorSchemes": {
     "darkMode": true,
-    "generationMethod": "muted",
+    "generationMethod": "rainbow",
     "manualSunrise": "06:30",
     "manualSunset": "18:30",
     "monitorForColors": "",
@@ -330,21 +330,7 @@
       },
       {
         "name": "HDMI-A-1",
-        "widgets": [
-          {
-            "colorName": "primary",
-            "height": 72,
-            "hideWhenIdle": true,
-            "id": "AudioVisualizer",
-            "roundedCorners": false,
-            "scale": 2.6819768471333005,
-            "showBackground": false,
-            "visualizerType": "linear",
-            "width": 320,
-            "x": 527,
-            "y": 886
-          }
-        ]
+        "widgets": []
       }
     ],
     "overviewEnabled": true
@@ -709,12 +695,12 @@
         "appearance": "dark",
         "colorScheme": "Nord",
         "darkMode": true,
-        "generationMethod": "muted",
+        "generationMethod": "rainbow",
         "paletteColors": [
-          "#989cb3",
-          "#8f8da5",
-          "#968fa3",
-          "#fd4663"
+          "#bac3ff",
+          "#c3c5dd",
+          "#e5bad8",
+          "#ffb4ab"
         ],
         "path": "@@HOME@@/Wallpapers/Olas.jpg",
         "useWallpaperColors": true
@@ -723,14 +709,28 @@
         "appearance": "dark",
         "colorScheme": "Nord",
         "darkMode": true,
-        "generationMethod": "muted",
+        "generationMethod": "rainbow",
         "paletteColors": [
-          "#9898b3",
-          "#928da5",
-          "#988fa3",
-          "#fd4663"
+          "#c7bfff",
+          "#c8c3dc",
+          "#ecb8cf",
+          "#ffb4ab"
         ],
         "path": "@@HOME@@/Wallpapers/Espacio.png",
+        "useWallpaperColors": true
+      },
+      {
+        "appearance": "dark",
+        "colorScheme": "Nord",
+        "darkMode": true,
+        "generationMethod": "rainbow",
+        "paletteColors": [
+          "#96d784",
+          "#bbcbb2",
+          "#a0cfd2",
+          "#ffb4ab"
+        ],
+        "path": "@@HOME@@/Wallpapers/wallhaven-vpymv5.png",
         "useWallpaperColors": true
       }
     ],
@@ -749,11 +749,13 @@
     "skipStartupTransition": false,
     "solidColor": "#001211",
     "sortOrder": "name_desc",
-    "transitionDuration": 2100,
-    "transitionEdgeSmoothness": 0.13,
+    "transitionDuration": 1200,
+    "transitionEdgeSmoothness": 0.16,
     "transitionType": [
       "disc",
-      "wipe"
+      "stripes",
+      "wipe",
+      "honeycomb"
     ],
     "useOriginalImages": false,
     "useSolidColor": false,

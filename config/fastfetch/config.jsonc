@@ -5,13 +5,13 @@
 
   "modules": [
     { "type": "custom", "format": "╭───────────────────────────╮" },
-    { "type": "os",       "key": "  OS",       "format": "{2}", "keyColor": "38;2;44;38;40" },
-    { "type": "kernel",   "key": "  Kernel",   "format": "{2}", "keyColor": "38;2;111;102;104" },
-    { "type": "packages", "key": "  Packages", "keyColor": "38;2;203;185;191" },
-    { "type": "terminal", "key": "  Terminal", "keyColor": "38;2;201;187;188" },
-    { "type": "shell",    "key": "  Shell",    "keyColor": "38;2;200;190;188" },
-    { "type": "wm",       "key": "  WM",       "format": "{2}", "keyColor": "38;2;203;185;191" },
-    { "type": "uptime",   "key": "  Uptime",   "keyColor": "38;2;111;102;104" },
+    { "type": "os",       "key": "  OS",       "format": "{2}", "keyColor": "38;2;71;71;71" },
+    { "type": "kernel",   "key": "  Kernel",   "format": "{2}", "keyColor": "38;2;145;145;145" },
+    { "type": "packages", "key": "  Packages", "keyColor": "38;2;255;185;99" },
+    { "type": "terminal", "key": "  Terminal", "keyColor": "38;2;223;193;162" },
+    { "type": "shell",    "key": "  Shell",    "keyColor": "38;2;188;205;157" },
+    { "type": "wm",       "key": "  WM",       "format": "{2}", "keyColor": "38;2;255;185;99" },
+    { "type": "uptime",   "key": "  Uptime",   "keyColor": "38;2;145;145;145" },
     { "type": "custom", "format": "╰───────────────────────────╯" }
   ]
 }

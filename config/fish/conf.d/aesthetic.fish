@@ -28,3 +28,14 @@ function clock
     end
     tty-clock -C $color -t -c $argv
 end
+
+function rain
+    if command -q terminal-rain
+        terminal-rain $argv
+    else if command -q terminal-rain-lightning
+        terminal-rain-lightning $argv
+    else
+        echo "Install: yay -S terminal-rain-lightning" >&2
+        return 1
+    end
+end

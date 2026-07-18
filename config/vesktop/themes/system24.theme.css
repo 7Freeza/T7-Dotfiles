@@ -30,31 +30,31 @@ body {
   --colors: on;
 
   /* text */
-  --text-0: #211c1e;
-  --text-1: #f3f2f2;
-  --text-2: #f3f2f2;
-  --text-3: color-mix(in srgb, #f3f2f2 70%, #6f6668);
-  --text-4: color-mix(in srgb, #f3f2f2 55%, #6f6668);
-  --text-5: color-mix(in srgb, #f3f2f2 45%, #6f6668);
+  --text-0: #131313;
+  --text-1: #e2e2e2;
+  --text-2: #e2e2e2;
+  --text-3: color-mix(in srgb, #e2e2e2 70%, #919191);
+  --text-4: color-mix(in srgb, #e2e2e2 55%, #919191);
+  --text-5: color-mix(in srgb, #e2e2e2 45%, #919191);
 
   /* backgrounds */
-  --bg-1: #211c1e;
-  --bg-2: #2c2628;
-  --bg-3: #2c2628;
-  --bg-4: #211c1e;
+  --bg-1: #131313;
+  --bg-2: #474747;
+  --bg-3: #474747;
+  --bg-4: #131313;
 
-  --hover: #2c2628;
-  --active: #2c2628;
-  --message-hover: #2c2628;
+  --hover: #474747;
+  --active: #474747;
+  --message-hover: #474747;
 
   /* PRIMARY */
-  --accent-1: #cbb9bf;
+  --accent-1: #ffb963;
 
   /* map ALL system24 accents */
   --accent-2: var(--accent-1);
-  --accent-3: #c9bbbc;
-  --accent-4: #2c2628;
-  --accent-5: #c8bebc;
+  --accent-3: #dfc1a2;
+  --accent-4: #474747;
+  --accent-5: #bccd9d;
   --accent-6: var(--accent-1);
 
   /* borders */
@@ -73,11 +73,11 @@ body {
   --pill-active: var(--accent-1);
 
   /* status */
-  --online: #cbb9bf;
-  --idle: #c8bebc;
-  --dnd: #fd4663;
-  --streaming: #c9bbbc;
-  --offline: #6f6668;
+  --online: #ffb963;
+  --idle: #bccd9d;
+  --dnd: #ffb4ab;
+  --streaming: #dfc1a2;
+  --offline: #919191;
 }
 
 /* ===================== /

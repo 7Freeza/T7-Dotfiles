@@ -7,42 +7,33 @@ Tested on **CachyOS** with **Niri** + **Noctalia Shell**.
 | Package | Role |
 |---------|------|
 | `niri` | Wayland compositor |
-| `noctalia-shell` | Bar, shell UI, Material You colors, wallpaper IPC |
+| `noctalia-shell` | Bar, theming, wallpaper IPC |
 | `quickshell` (`qs`) | Noctalia runtime |
 | `kitty` | Terminal |
 | `starship` | Prompt |
 | `fish` | Shell |
-| `fastfetch` | Terminal system banner |
-| `python3` | Wallpaper cycle + Zen theme scripts |
+| `fastfetch` | Terminal banner |
+| `python3` | Wallpaper cycle + Zen scripts |
 
-## Themed applications
+## Themed apps
 
-| Package | How colors land |
-|---------|-----------------|
-| `zen-browser` | Noctalia `zenBrowser` template + `fix-zen-noctalia-theme` hook |
-| `vesktop` | Template `discord.css` → `~/.config/vesktop/themes/system24.theme.css` |
-| `code` / `code-oss` | Noctalia VS Code theme extension (`NoctaliaTheme`) |
-| `btop` | Built-in Noctalia template |
-| `cava` | Built-in Noctalia template |
+| Package | Notes |
+|---------|--------|
+| `zen-browser` | Noctalia template + `fix-zen-noctalia-theme` hook |
+| `vesktop` | `discord.css` → system24 theme |
+| `code` / `code-oss` | Noctalia VS Code theme extension |
+| `btop` / `cava` | Built-in Noctalia templates |
 
 ## Optional terminal toys
 
-Loaded via `config/fish/conf.d/aesthetic.fish` (colors follow wallpaper):
+Used via `config/fish/conf.d/aesthetic.fish`:
 
-- `cbonsai`
-- `lavat`
-- `pipes.sh`
-- `tty-clock`
+- `cbonsai`, `lavat`, `pipes.sh`, `tty-clock`
+- `terminal-rain-lightning` (`yay -S terminal-rain-lightning` → `rain`)
 
-## Fonts
+## Fonts / cursors
 
-- **Maple Mono** (or Maple Mono NF) — Vesktop/system24 theme
-- System monospace — Kitty (`font_family monospace`)
-- **Adwaita Sans** — Noctalia UI (see `settings.json` → `ui.fontDefault`)
-- **capitaine-cursors** — cursor theme (GTK + Niri)
-
-## Not included on purpose
-
-- Account tokens, Vesktop session data, Zen passwords/cookies
-- Spicetify (stock Spotify)
-- Hardware-specific display modes (see `config/niri/cfg/display.kdl`, commented)
+- Maple Mono (Vesktop system24)
+- System monospace (Kitty)
+- Adwaita Sans (Noctalia UI)
+- capitaine-cursors

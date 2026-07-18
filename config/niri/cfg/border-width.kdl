@@ -1,10 +1,24 @@
-// Grosor únicamente — después de noctalia.kdl para no pisar los colores.
+// Grosor de bordes + sombra compacta tipo marco (bien visible).
+// DESPUÉS de noctalia.kdl: no tocamos active/inactive/urgent de border/focus-ring.
+// Color de sombra FIJO oscuro (el de Noctalia es casi igual al wallpaper y no se nota).
+
 layout {
     focus-ring {
-        width 2
+        width 3
     }
 
     border {
-        width 2
+        width 3
+    }
+
+    // Marco superpuesto: poco blur, sombra negra opaca, peso abajo.
+    shadow {
+        on
+        softness 6
+        spread 2
+        offset x=2 y=5
+        draw-behind-window true
+        // ~80% negro — se lee como marco, no como glow del wallpaper
+        color "#000000cc"
     }
 }

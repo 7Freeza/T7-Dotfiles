@@ -107,22 +107,26 @@ binds {
     Mod+CTRL+WheelScrollRight            { move-column-right; }
     Mod+CTRL+WheelScrollLeft             { move-column-left; }
 
-    // ─── Layout ───
-
-    Mod+Minus                            { set-column-width "-10%"; }
-    Mod+Equal                            { set-column-width "+10%"; }
-    Mod+Shift+Minus                      { set-window-height "-10%"; }
-    Mod+Shift+Equal                      { set-window-height "+10%"; }
+    // ─── Layout (ancho / alto) ───
+    // Super+ñ     → más estrecha
+    // Super+{     → más ancha
+    // Super+Shift+ñ → menos alto
+    // Super+Shift+{ → más alto
+    // (XKB: ntilde, braceleft — teclado latam)
+    Mod+ntilde                           hotkey-overlay-title="Shrink column" { set-column-width "-10%"; }
+    Mod+braceleft                        hotkey-overlay-title="Grow column" { set-column-width "+10%"; }
+    Mod+Shift+ntilde                     hotkey-overlay-title="Shrink height" { set-window-height "-10%"; }
+    Mod+Shift+braceleft                  hotkey-overlay-title="Grow height" { set-window-height "+10%"; }
 
     // ─── Column stack / tabs (como grupos de Hyprland) ───
     // Super+V → meter ventana en la columna (apilar)
     // Super+B → modo pestañas on/off en la columna
-    Mod+V                                hotkey-overlay-title="Stack into column" { consume-window-into-column; }
+    Mod+V                                hotkey-overlay-title="Toggle floating" { toggle-window-floating; }
     Mod+B                                hotkey-overlay-title="Toggle column tabs" { toggle-column-tabbed-display; }
 
     // ─── Modos ───
 
-    Mod+T                                { toggle-window-floating; }
+    Mod+T                                hotkey-overlay-title="Stack into column" { consume-window-into-column; }
     Mod+F                                hotkey-overlay-title="Fullscreen" { fullscreen-window; }
     F11                                  hotkey-overlay-title="Fullscreen" { fullscreen-window; }
     Mod+O                                repeat=false { toggle-overview; }
