@@ -1,6 +1,6 @@
 # T7 Hyprland + Noctalia — keybinds
 
-Source of truth: [`config/hypr/hyprland.lua`](../../config/hypr/hyprland.lua)
+Source of truth: [`config/hypr/hyprland.lua`](../config/hypr/hyprland.lua)
 
 `mainMod` = **Super**
 

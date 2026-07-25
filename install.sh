@@ -190,9 +190,9 @@ Next:
   4. qs -c noctalia-shell &
   5. Pick a wallpaper once (Material You colors)
   6. Vesktop → enable system24 theme
-  7. Keybinds: recursos-hyprland/docs/KEYBINDS.md
+  7. Keybinds: docs/KEYBINDS.md
 
-Gallery / README images: recursos-hyprland/gallery/
+Gallery: screenshots/   |   Install walls: wallpapers/
 
 Keybinds (highlights):
   Super+Space          launcher

@@ -13,7 +13,7 @@
 
 <br/>
 
-<img src="recursos-hyprland/gallery/01-azul.png" alt="T7 rice — cool palette" width="920"/>
+<img src="screenshots/01-azul.png" alt="T7 rice — cool palette" width="920"/>
 
 </div>
 
@@ -25,8 +25,8 @@
 - Full **keybind map**, multi-monitor / lid via **`t7-display`**
 - Dual keyboard policy (laptop **latam** + Redragon K630 custom XKB)
 - Screenshots (`t7-screenshot`), wallpaper cycle, system24 Discord
-- **`recursos-hyprland/`** — gallery + docs used by this README
 - Installer skips secrets (no Vesktop session, no tokens, `@@HOME@@` expand)
+- **New rice gallery** under `screenshots/` (replaces v2 images)
 
 Niri configs remain under `config/niri/` as **legacy / optional** (`DOTFILES_NIRI=1`).
 
@@ -34,40 +34,30 @@ Niri configs remain under `config/niri/` as **legacy / optional** (`DOTFILES_NIR
 
 ## Features
 
-- **Live Material You** from wallpaper (`muted` / tonal generation via Noctalia)
+- **Live Material You** from wallpaper via Noctalia
 - **Desktop in sync** — bar, Kitty, Starship, Hypr borders, Zen hooks, Vesktop **system24**, VS Code, btop, cava, fastfetch
-- **Animated wallpaper cycle** — `Super+Shift+W` recolors the rice
+- **Wallpaper cycle** — `Super+Shift+W` recolors the rice
 - Subtle rounded corners, snappy window anims
 - **Clamshell + HDMI** policy daemon (`t7-display.service`)
-- `install.sh` + wallpapers + gallery
+- `install.sh` + `wallpapers/` for install
 
 ---
 
 ## Gallery
 
-Images live in [`recursos-hyprland/gallery/`](recursos-hyprland/gallery/).
-
 ### Cool palette
 
 | | |
 |:---:|:---:|
-| <img src="recursos-hyprland/gallery/01-azul.png" width="420"/> | <img src="recursos-hyprland/gallery/02-azul.png" width="420"/> |
-| <img src="recursos-hyprland/gallery/03-azul.png" width="420"/> | <img src="recursos-hyprland/gallery/04-azul.png" width="420"/> |
+| <img src="screenshots/01-azul.png" width="420"/> | <img src="screenshots/02-azul.png" width="420"/> |
+| <img src="screenshots/03-azul.png" width="420"/> | <img src="screenshots/04-azul.png" width="420"/> |
 
 ### Warm palette
 
 | | |
 |:---:|:---:|
-| <img src="recursos-hyprland/gallery/05-amarillo.png" width="420"/> | <img src="recursos-hyprland/gallery/06-amarillo.png" width="420"/> |
-| <img src="recursos-hyprland/gallery/07-amarillo.png" width="420"/> | <img src="recursos-hyprland/gallery/08-amarillo.png" width="420"/> |
-
-### Wallpaper cycle
-
-<div align="center">
-  <img src="recursos-hyprland/gallery/wallpaper-cycle.gif" alt="Wallpaper cycle with live recolor" width="720"/>
-</div>
-
-Also: [`screenshots/`](screenshots/) (legacy v2 paths still valid).
+| <img src="screenshots/05-amarillo.png" width="420"/> | <img src="screenshots/06-amarillo.png" width="420"/> |
+| <img src="screenshots/07-amarillo.png" width="420"/> | <img src="screenshots/08-amarillo.png" width="420"/> |
 
 ---
 
@@ -115,7 +105,7 @@ Pick a wallpaper once so colors generate. In Vesktop, enable the **system24** th
 | `Super+Shift+I` | Wallpaper selector |
 | `Ctrl+Shift+1` | Region screenshot |
 
-**Full table:** [recursos-hyprland/docs/KEYBINDS.md](recursos-hyprland/docs/KEYBINDS.md)  
+**Full table:** [docs/KEYBINDS.md](docs/KEYBINDS.md)  
 **Source:** [`config/hypr/hyprland.lua`](config/hypr/hyprland.lua)
 
 ---
@@ -125,7 +115,7 @@ Pick a wallpaper once so colors generate. In Vesktop, enable the **system24** th
 ```text
 config/
   hypr/           # hyprland.lua + conf + noctalia colors
-  noctalia/       # settings (@@HOME@@), templates, system24 discord.css
+  noctalia/       # settings (@@HOME@@), templates, discord.css
   vesktop/        # system24.theme.css only (+ minimal settings.json)
   t7/             # display policy
   xkb/            # Redragon K630 maps
@@ -133,11 +123,9 @@ config/
   kitty fish …    # aesthetic stack
   niri/           # legacy optional
 scripts/          # t7-display, screenshot, keyboard, wallpaper, zen…
-wallpapers/       # shipped walls → ~/Wallpapers
-recursos-hyprland/
-  gallery/        # README images
-  docs/           # KEYBINDS.md
-docs/             # dependencies
+wallpapers/       # shipped walls → ~/Wallpapers (install)
+screenshots/      # README gallery (rice photos)
+docs/             # dependencies, KEYBINDS
 install.sh
 ```
 
@@ -145,38 +133,34 @@ install.sh
 
 ## Security / clean install
 
-This release is meant to be **safe to clone**:
-
 - No Vesktop `sessionData`, cookies, or Discord tokens  
 - No browser profiles / password DBs  
 - No API keys  
 - Paths use `@@HOME@@` and expand at install time  
-- Machine-specific monitors still work via `t7-display` + editable `~/.config/t7/display.conf`
+- Machine-specific monitors via `t7-display` + `~/.config/t7/display.conf`
 
-If you fork: never commit `~/.config/vesktop/sessionData` or raw browser profiles.
+Never commit raw browser profiles or Discord session folders.
 
 ---
 
 ## Discord system24
 
-- Theme file: [`config/vesktop/themes/system24.theme.css`](config/vesktop/themes/system24.theme.css)
-- Noctalia Matugen template: [`config/noctalia/templates/discord.css`](config/noctalia/templates/discord.css)
+- Theme: [`config/vesktop/themes/system24.theme.css`](config/vesktop/themes/system24.theme.css)
+- Noctalia template: [`config/noctalia/templates/discord.css`](config/noctalia/templates/discord.css)
 
-Enable the theme inside Vesktop after install. Colors track wallpaper when templates regenerate.
+Enable the theme inside Vesktop after install.
 
 ---
 
 ## Multi-monitor & lid
 
-`t7-display` is the single authority for eDP + HDMI clamshell:
-
 ```bash
 t7-display status
 t7-display ensure
-systemctl --user status t7-display.service
+systemctl --user enable --now t7-display.service
 ```
 
-Policy file: `~/.config/t7/display.conf` (shipped defaults for eDP-1 / HDMI-A-1).
+Policy: `~/.config/t7/display.conf` (defaults eDP-1 / HDMI-A-1).
 
 ---
 
