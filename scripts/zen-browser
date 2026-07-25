@@ -1,76 +1,27 @@
 #!/usr/bin/env bash
-# Lanza Zen y corrige maximize-to-edges en Niri (bordes visibles como Kitty).
+# Launch Zen (Hyprland-safe). Niri-specific edge fix removed.
 set -euo pipefail
 
-fix_zen_edges() {
-  python3 <<'PY'
-import json, subprocess, sys
-
-def niri_windows():
-    try:
-        out = subprocess.check_output(["niri", "msg", "-j", "windows"], stderr=subprocess.DEVNULL)
-        return json.loads(out)
-    except Exception:
-        return []
-
-def output_width():
-    try:
-        out = subprocess.check_output(["niri", "msg", "-j", "focused-output"], stderr=subprocess.DEVNULL)
-        data = json.loads(out)
-        return int(data.get("logical", {}).get("width", 1920))
-    except Exception:
-        return 1920
-
-ws = niri_windows()
-zen = [w for w in ws if w.get("app_id") == "zen"]
-if not zen:
-    sys.exit(0)
-
-w = zen[-1]
-wid = w["id"]
-tile_w = float(w.get("layout", {}).get("tile_size", [0])[0])
-full_w = float(output_width())
-
-# maximize-to-edges usa el ancho lógico completo del monitor (p. ej. 1920 vs 1888).
-if tile_w < full_w - 4:
-    sys.exit(0)
-
-subprocess.run(["niri", "msg", "action", "focus-window", "--id", str(wid)], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-subprocess.run(["niri", "msg", "action", "maximize-window-to-edges"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-PY
-}
-
 if pgrep -x zen-bin >/dev/null 2>&1; then
-  fix_zen_edges || true
-  wid=$(niri msg -j windows 2>/dev/null | python3 -c "
+  # Focus existing window if possible
+  if command -v hyprctl >/dev/null 2>&1; then
+    addr=$(hyprctl clients -j 2>/dev/null | python3 -c "
 import sys, json
 try:
-    ws = json.load(sys.stdin)
+    clients = json.load(sys.stdin)
 except Exception:
     raise SystemExit
-zen = [w for w in ws if w.get('app_id') == 'zen']
-if zen:
-    print(zen[-1]['id'])
+for c in clients:
+    cls = (c.get('class') or '') + ' ' + (c.get('initialClass') or '')
+    if 'zen' in cls.lower():
+        print(c.get('address',''))
+        break
 " 2>/dev/null || true)
-
-  if [[ -n "${wid:-}" ]]; then
-    niri msg action focus-window --id "$wid" >/dev/null 2>&1 || true
-  fi
-  exit 0
-fi
-
-/usr/bin/zen-browser "$@" &
-disown
-
-for _ in $(seq 1 40); do
-  if pgrep -x zen-bin >/dev/null 2>&1; then
-    if niri msg -j windows 2>/dev/null | python3 -c "import sys,json; sys.exit(0 if any(w.get('app_id')=='zen' for w in json.load(sys.stdin)) else 1)" 2>/dev/null; then
-      sleep 0.25
-      fix_zen_edges || true
+    if [[ -n "${addr:-}" ]]; then
+      hyprctl dispatch focuswindow "address:${addr}" >/dev/null 2>&1 || true
       exit 0
     fi
   fi
-  sleep 0.25
-done
+fi
 
-exit 0
+exec /usr/bin/zen-browser "$@"

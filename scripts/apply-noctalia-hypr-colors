@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Apply Noctalia colors.json → Hyprland border colors ONLY.
+# Safe for colorGeneration hook: never reloads Hyprland, never touches qs/Noctalia.
+set -u
+COLORS="${XDG_CONFIG_HOME:-$HOME/.config}/noctalia/colors.json"
+[[ -f "$COLORS" ]] || exit 0
+command -v hyprctl >/dev/null 2>&1 || exit 0
+command -v python3 >/dev/null 2>&1 || exit 0
+
+# Ensure hyprctl can talk to the compositor when run from hooks
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+  for d in "$XDG_RUNTIME_DIR"/hypr/*/; do
+    [[ -e "${d}hyprland.lock" ]] || continue
+    export HYPRLAND_INSTANCE_SIGNATURE
+    HYPRLAND_INSTANCE_SIGNATURE="$(basename "$d")"
+    break
+  done
+fi
+[[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || exit 0
+
+eval "$(python3 - "$COLORS" <<'PY' 2>/dev/null || true
+import json, sys
+from pathlib import Path
+try:
+    c = json.loads(Path(sys.argv[1]).read_text())
+except Exception:
+    raise SystemExit(0)
+def h(k, fb="ffffff"):
+    return (c.get(k) or fb).lstrip("#")
+print(f'PRIMARY="{h("mPrimary")}"')
+print(f'VARIANT="{h("mSurfaceVariant")}"')
+PY
+)" || exit 0
+
+[[ -n "${PRIMARY:-}" ]] || exit 0
+
+# Never use `hyprctl reload` here — wallpaper color hooks would kill the session UX.
+hyprctl --batch "\
+keyword general:col.active_border rgb(${PRIMARY}) ;\
+keyword general:col.inactive_border rgba(${VARIANT}aa)" >/dev/null 2>&1 || true
+
+exit 0

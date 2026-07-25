@@ -1,0 +1,872 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════
+# t7-display v2.1 — single authority: outputs + shell (Noctalia)
+# ═══════════════════════════════════════════════════════════════════
+#
+# One brain. Hardware → policy → hypr reality → shell health.
+# Nothing else decides monitors or restarts the bar.
+#
+# Policy (only place that decides layout names):
+#   no external              → laptop-only
+#   external + lid open      → both          (HDMI left, eDP right)
+#   external + lid closed    → external-only
+#   external + lid unknown   → external-only (clamshell-safe)
+#
+# Safety:
+#   1) Never leave zero active monitors (primary on before secondary off).
+#   2) Lid closed ⇒ eDP must stay off (hard invariant every cycle).
+#   3) flock serializes applies; rate-limit protects Hyprland.
+#   4) Never hyprctl reload / never kill Hyprland.
+#   5) Shell restart is last resort (qs dead or bar layer missing).
+#   6) Hypr events are filtered by EVENT NAME only (not free text).
+#      screencast>>…,monitor  must never trigger a reconcile.
+#
+set -euo pipefail
+
+VERSION="2.1.0"
+
+# ── Paths ─────────────────────────────────────────────────────────
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/t7/display.conf"
+LOG="${XDG_CACHE_HOME:-$HOME/.cache}/t7-display.log"
+LOG_MAX_BYTES=$((512 * 1024))
+RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+LOCK_FILE="$RUNTIME/t7-display.lock"
+STATE_FILE="$RUNTIME/t7-display.state"
+DAEMON_PID_FILE="$RUNTIME/t7-display.daemon.pid"
+LAST_APPLY_TS_FILE="$RUNTIME/t7-display.last-apply"
+SHELL_TS_FILE="$RUNTIME/t7-display.shell-restart"
+
+# Defaults (conf / env override)
+LAPTOP="${T7_LAPTOP_OUTPUT:-eDP-1}"
+EXTERNAL="${T7_EXTERNAL_OUTPUT:-HDMI-A-1}"
+SCALE="${T7_DISPLAY_SCALE:-1}"
+EXTERNAL_POS="${T7_EXTERNAL_POS:-0x0}"
+LAPTOP_POS_DUAL="${T7_LAPTOP_POS_DUAL:-1920x0}"
+LAPTOP_POS_SOLO="${T7_LAPTOP_POS_SOLO:-0x0}"
+DEBOUNCE_SEC="${T7_DISPLAY_DEBOUNCE:-0.55}"
+POLL_SEC="${T7_DISPLAY_POLL:-1.0}"
+MIN_APPLY_GAP="${T7_DISPLAY_MIN_APPLY_GAP:-0.35}"
+SHELL_WAIT="${T7_SHELL_WAIT:-2.0}"
+SHELL_RESTART_GAP="${T7_SHELL_RESTART_GAP:-12}"
+# Idle: how often to check qs liveness when displays are stable (multiples of POLL)
+SHELL_IDLE_CHECKS="${T7_SHELL_IDLE_CHECKS:-8}"
+
+load_conf() {
+  [[ -f "$CONF" ]] || return 0
+  set -a
+  # shellcheck disable=SC1090
+  source <(grep -E '^[A-Z0-9_]+=[^;&|`$()]*$' "$CONF" || true)
+  set +a
+  LAPTOP="${T7_LAPTOP_OUTPUT:-$LAPTOP}"
+  EXTERNAL="${T7_EXTERNAL_OUTPUT:-$EXTERNAL}"
+  SCALE="${T7_DISPLAY_SCALE:-$SCALE}"
+  EXTERNAL_POS="${T7_EXTERNAL_POS:-$EXTERNAL_POS}"
+  LAPTOP_POS_DUAL="${T7_LAPTOP_POS_DUAL:-$LAPTOP_POS_DUAL}"
+  LAPTOP_POS_SOLO="${T7_LAPTOP_POS_SOLO:-$LAPTOP_POS_SOLO}"
+  DEBOUNCE_SEC="${T7_DISPLAY_DEBOUNCE:-$DEBOUNCE_SEC}"
+  POLL_SEC="${T7_DISPLAY_POLL:-$POLL_SEC}"
+  MIN_APPLY_GAP="${T7_DISPLAY_MIN_APPLY_GAP:-$MIN_APPLY_GAP}"
+  SHELL_WAIT="${T7_SHELL_WAIT:-$SHELL_WAIT}"
+  SHELL_RESTART_GAP="${T7_SHELL_RESTART_GAP:-$SHELL_RESTART_GAP}"
+  SHELL_IDLE_CHECKS="${T7_SHELL_IDLE_CHECKS:-$SHELL_IDLE_CHECKS}"
+}
+
+mkdir -p "$(dirname "$LOG")" "$RUNTIME"
+
+log() {
+  if [[ -f "$LOG" ]]; then
+    local sz
+    sz=$(wc -c <"$LOG" 2>/dev/null || echo 0)
+    if (( sz > LOG_MAX_BYTES )); then
+      mv -f "$LOG" "${LOG}.1" 2>/dev/null || true
+    fi
+  fi
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"
+}
+
+# ── Hyprland session ──────────────────────────────────────────────
+ensure_hypr() {
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin${PATH:+:$PATH}"
+
+  if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] \
+    || [[ ! -e "$XDG_RUNTIME_DIR/hypr/${HYPRLAND_INSTANCE_SIGNATURE}/hyprland.lock" ]]; then
+    local d best="" best_m=0 m
+    for d in "$XDG_RUNTIME_DIR"/hypr/*/; do
+      [[ -e "${d}hyprland.lock" ]] || continue
+      m=$(stat -c %Y "${d}hyprland.lock" 2>/dev/null || echo 0)
+      if (( m >= best_m )); then
+        best_m=$m
+        best=$(basename "$d")
+      fi
+    done
+    [[ -n "$best" ]] || return 1
+    export HYPRLAND_INSTANCE_SIGNATURE="$best"
+  fi
+  command -v hyprctl >/dev/null 2>&1 || return 1
+  hyprctl version >/dev/null 2>&1
+}
+
+socket2_path() {
+  printf '%s\n' "$XDG_RUNTIME_DIR/hypr/${HYPRLAND_INSTANCE_SIGNATURE}/.socket2.sock"
+}
+
+# ── Lock ──────────────────────────────────────────────────────────
+with_lock() {
+  local fd
+  exec {fd}>"$LOCK_FILE" || return 1
+  if ! flock -w 8 "$fd"; then
+    log "WARN: lock timeout"
+    exec {fd}>&-
+    return 1
+  fi
+  "$@"
+  local rc=$?
+  flock -u "$fd" 2>/dev/null || true
+  exec {fd}>&-
+  return $rc
+}
+
+# ── Hardware ──────────────────────────────────────────────────────
+lid_state() {
+  local s
+  s=$(cat /proc/acpi/button/lid/*/state 2>/dev/null | awk '{print $2; exit}')
+  case "$s" in open|closed) printf '%s\n' "$s" ;; *) printf 'unknown\n' ;; esac
+}
+
+drm_path() {
+  ls -d /sys/class/drm/card*-"$1" 2>/dev/null | head -1 || true
+}
+
+drm_connected() {
+  local p
+  p=$(drm_path "$1")
+  [[ -n "$p" && "$(cat "$p/status" 2>/dev/null || true)" == "connected" ]]
+}
+
+drm_status() {
+  local p
+  p=$(drm_path "$1")
+  if [[ -z "$p" ]]; then printf 'missing\n'; return; fi
+  cat "$p/status" 2>/dev/null || printf 'unknown\n'
+}
+
+topology_key() {
+  printf '%s|ext=%s|lap=%s\n' \
+    "$(lid_state)" \
+    "$(drm_status "$EXTERNAL")" \
+    "$(drm_status "$LAPTOP")"
+}
+
+# ── Policy (single decision point) ────────────────────────────────
+policy() {
+  if ! drm_connected "$EXTERNAL"; then
+    printf 'laptop-only\n'
+    return
+  fi
+  case "$(lid_state)" in
+    open)   printf 'both\n' ;;
+    closed) printf 'external-only\n' ;;
+    *)      printf 'external-only\n' ;;
+  esac
+}
+
+primary_of() {
+  case "$1" in
+    laptop-only) printf '%s\n' "$LAPTOP" ;;
+    *)           printf '%s\n' "$EXTERNAL" ;;
+  esac
+}
+
+# Monitors that must host a bar for a given policy
+expected_bar_mons() {
+  case "$1" in
+    external-only) printf '%s\n' "$EXTERNAL" ;;
+    laptop-only)   printf '%s\n' "$LAPTOP" ;;
+    both)
+      printf '%s\n' "$EXTERNAL"
+      printf '%s\n' "$LAPTOP"
+      ;;
+  esac
+}
+
+# ── Hypr observation ──────────────────────────────────────────────
+hypr_active_names() {
+  hyprctl monitors 2>/dev/null | awk '/^Monitor /{print $2}' || true
+}
+
+monitor_active() {
+  hypr_active_names | grep -Fxq "$1"
+}
+
+active_csv() {
+  hypr_active_names | paste -sd, - | tr -d ' '
+}
+
+reality_ok() {
+  local want="$1"
+  case "$want" in
+    external-only)
+      monitor_active "$EXTERNAL" || return 1
+      monitor_active "$LAPTOP" && return 1
+      return 0
+      ;;
+    laptop-only)
+      monitor_active "$LAPTOP" || return 1
+      monitor_active "$EXTERNAL" && return 1
+      return 0
+      ;;
+    both)
+      monitor_active "$LAPTOP" || return 1
+      monitor_active "$EXTERNAL" || return 1
+      return 0
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+# ── Apply (order-safe) ────────────────────────────────────────────
+hypr_eval() {
+  hyprctl eval "$1" >/dev/null 2>&1 || true
+}
+
+enable_mon() {
+  local out="$1" pos="$2"
+  hypr_eval "hl.monitor({ output = \"${out}\", mode = \"preferred\", position = \"${pos}\", scale = ${SCALE}, disabled = false })"
+}
+
+disable_mon() {
+  local out="$1"
+  hypr_eval "hl.monitor({ output = \"${out}\", disabled = true })"
+}
+
+focus_mon() {
+  local mon="$1"
+  hyprctl dispatch focusmonitor "$mon" >/dev/null 2>&1 || true
+  hyprctl dispatch "hl.dsp.focus({ monitor = \"$mon\" })" >/dev/null 2>&1 || true
+}
+
+_rate_ok() {
+  local now last gap_ns
+  now=$(date +%s%N)
+  last=$(cat "$LAST_APPLY_TS_FILE" 2>/dev/null || echo 0)
+  gap_ns=$(awk -v s="$MIN_APPLY_GAP" 'BEGIN{printf "%.0f", s*1e9}')
+  if (( now - last < gap_ns )); then
+    return 1
+  fi
+  printf '%s\n' "$now" >"$LAST_APPLY_TS_FILE"
+  return 0
+}
+
+apply_policy() {
+  local want="$1"
+  log "apply $want lid=$(lid_state) hdmi=$(drm_status "$EXTERNAL") active=$(active_csv)"
+
+  case "$want" in
+    external-only)
+      enable_mon "$EXTERNAL" "$EXTERNAL_POS"
+      sleep 0.05
+      if monitor_active "$EXTERNAL"; then
+        disable_mon "$LAPTOP"
+      else
+        log "WARN: external not up — retry before killing laptop"
+        enable_mon "$EXTERNAL" "$EXTERNAL_POS"
+        sleep 0.12
+        monitor_active "$EXTERNAL" && disable_mon "$LAPTOP"
+      fi
+      focus_mon "$EXTERNAL"
+      ;;
+    laptop-only)
+      enable_mon "$LAPTOP" "$LAPTOP_POS_SOLO"
+      sleep 0.05
+      if monitor_active "$LAPTOP"; then
+        disable_mon "$EXTERNAL"
+      else
+        log "WARN: laptop not up — retry before killing external"
+        enable_mon "$LAPTOP" "$LAPTOP_POS_SOLO"
+        sleep 0.12
+        monitor_active "$LAPTOP" && disable_mon "$EXTERNAL"
+      fi
+      focus_mon "$LAPTOP"
+      ;;
+    both)
+      enable_mon "$EXTERNAL" "$EXTERNAL_POS"
+      enable_mon "$LAPTOP" "$LAPTOP_POS_DUAL"
+      focus_mon "$EXTERNAL"
+      ;;
+  esac
+}
+
+enforce() {
+  local want="$1" i
+
+  if ! _rate_ok; then
+    if [[ "$(lid_state)" == "closed" ]] && monitor_active "$LAPTOP"; then
+      log "rate-limit bypass: hard lid off $LAPTOP"
+      disable_mon "$LAPTOP"
+      monitor_active "$EXTERNAL" && focus_mon "$EXTERNAL"
+    fi
+    sleep "$MIN_APPLY_GAP"
+  fi
+
+  apply_policy "$want"
+
+  for i in 1 2 3; do
+    sleep 0.1
+    if [[ "$(lid_state)" == "closed" ]] && monitor_active "$LAPTOP"; then
+      log "HARD lid-closed $LAPTOP still on (try $i)"
+      if monitor_active "$EXTERNAL"; then
+        disable_mon "$LAPTOP"
+        focus_mon "$EXTERNAL"
+      else
+        enable_mon "$EXTERNAL" "$EXTERNAL_POS"
+        sleep 0.08
+        disable_mon "$LAPTOP"
+      fi
+      continue
+    fi
+    reality_ok "$want" && return 0
+    log "verify fail want=$want try=$i active=$(active_csv)"
+    apply_policy "$want"
+  done
+
+  reality_ok "$want" && return 0
+  log "WARN enforce incomplete want=$want active=$(active_csv)"
+  return 1
+}
+
+# ── Noctalia / shell (secondary plane) ────────────────────────────
+qs_running() {
+  local p c
+  for p in $(pgrep -x qs 2>/dev/null || true); do
+    c=$(tr '\0' ' ' <"/proc/$p/cmdline" 2>/dev/null || true)
+    case "$c" in *noctalia-shell*) return 0 ;; esac
+  done
+  return 1
+}
+
+# Parse first matching layer line → sets globals _lx _ly _lw _lh (or return 1)
+_layer_geom() {
+  local pattern="$1" line
+  line=$(hyprctl layers 2>/dev/null | grep -E "$pattern" | head -1 || true)
+  [[ -n "$line" ]] || return 1
+  read -r _lx _ly _lw _lh < <(echo "$line" | sed -n 's/.*xywh: \([0-9][0-9]*\) \([0-9][0-9]*\) \([0-9][0-9]*\) \([0-9][0-9]*\).*/\1 \2 \3 \4/p')
+  [[ -n "${_lw:-}" && -n "${_lh:-}" ]] || return 1
+  (( _lw >= 1 && _lh >= 1 )) || return 1
+  return 0
+}
+
+# True if dedicated bar content layer exists with real size (top OR side bar).
+bar_present() {
+  local mon="$1"
+  _layer_geom "noctalia-bar-content-${mon}" || return 1
+  # content layer should be at least a thin strip
+  (( _lw >= 8 && _lh >= 8 )) || return 1
+  return 0
+}
+
+# Any Noctalia surface on this monitor (bar, wallpaper, background, dock…).
+# Used as "shell is painting" — more reliable than bar-only after layout changes.
+noctalia_surface_on() {
+  local mon="$1"
+  hyprctl layers 2>/dev/null | grep -qE "namespace: noctalia-[a-zA-Z0-9_-]*-${mon}" \
+    || hyprctl layers 2>/dev/null | grep -qE "noctalia-.*-${mon}"
+}
+
+# Shell healthy: qs up AND primary has noctalia surfaces.
+# Prefer bar_present; accept wallpaper/background as proof of life (no restart thrash).
+shell_ok() {
+  local want="$1" primary
+  qs_running || return 1
+  primary=$(primary_of "$want")
+  if bar_present "$primary"; then
+    return 0
+  fi
+  # Fallback: wallpaper/background means shell is bound to that output
+  if _layer_geom "noctalia-wallpaper-${primary}" || _layer_geom "noctalia-background-${primary}"; then
+    return 0
+  fi
+  noctalia_surface_on "$primary" || return 1
+  return 0
+}
+
+# Export compositor env so qs started from the daemon sees Wayland.
+_shell_env() {
+  ensure_hypr || true
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-Hyprland}"
+  export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+  # Pull WAYLAND_DISPLAY from hypr if missing
+  if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+    if [[ -S "$XDG_RUNTIME_DIR/wayland-1" ]]; then
+      export WAYLAND_DISPLAY=wayland-1
+    elif [[ -S "$XDG_RUNTIME_DIR/wayland-0" ]]; then
+      export WAYLAND_DISPLAY=wayland-0
+    fi
+  fi
+}
+
+any_noctalia_layers() {
+  hyprctl layers 2>/dev/null | grep -q 'noctalia-'
+}
+
+start_noctalia() {
+  qs_running && return 0
+  _shell_env
+  log "start noctalia (WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-?} sig=${HYPRLAND_INSTANCE_SIGNATURE:-?})"
+  local qs_log="${XDG_CACHE_HOME:-$HOME/.cache}/t7-noctalia.log"
+  nohup env \
+    WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}" \
+    HYPRLAND_INSTANCE_SIGNATURE="${HYPRLAND_INSTANCE_SIGNATURE:-}" \
+    XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+    XDG_CURRENT_DESKTOP=Hyprland \
+    XDG_SESSION_TYPE=wayland \
+    XDG_DATA_DIRS="${HOME}/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share" \
+    qs -c noctalia-shell >>"$qs_log" 2>&1 &
+  disown 2>/dev/null || true
+  local i=0
+  while (( i < 40 )); do
+    qs_running && break
+    sleep 0.1
+    i=$((i + 1))
+  done
+  # Give QML time to create layers before any health check
+  sleep 0.4
+  if [[ -x "$HOME/.local/bin/apply-noctalia-hypr-colors" ]]; then
+    "$HOME/.local/bin/apply-noctalia-hypr-colors" >>"$LOG" 2>&1 || true
+  fi
+}
+
+kill_noctalia() {
+  local p c still i=0
+  for p in $(pgrep -x qs 2>/dev/null || true); do
+    c=$(tr '\0' ' ' <"/proc/$p/cmdline" 2>/dev/null || true)
+    case "$c" in *noctalia-shell*) kill "$p" 2>/dev/null || true ;; esac
+  done
+  while (( i < 20 )); do
+    still=0
+    for p in $(pgrep -x qs 2>/dev/null || true); do
+      c=$(tr '\0' ' ' <"/proc/$p/cmdline" 2>/dev/null || true)
+      case "$c" in
+        *noctalia-shell*)
+          still=1
+          if (( i > 10 )); then kill -9 "$p" 2>/dev/null || true
+          else kill "$p" 2>/dev/null || true
+          fi
+          ;;
+      esac
+    done
+    (( still == 0 )) && break
+    sleep 0.08
+    i=$((i + 1))
+  done
+}
+
+restart_noctalia() {
+  local now last
+  now=$(date +%s)
+  last=$(cat "$SHELL_TS_FILE" 2>/dev/null || echo 0)
+  if (( now - last < SHELL_RESTART_GAP )); then
+    log "noctalia restart skipped (gap ${SHELL_RESTART_GAP}s)"
+    start_noctalia
+    return 0
+  fi
+  printf '%s\n' "$now" >"$SHELL_TS_FILE"
+  log "restart noctalia"
+  kill_noctalia
+  sleep 0.15
+  start_noctalia
+}
+
+# care_shell — conservative on purpose.
+# Restart only if qs is dead, or qs is alive with ZERO noctalia layers system-wide
+# (true zombie). Never thrash on bar geometry / side-bar layouts.
+ensure_shell() {
+  local want="$1"
+  local primary loops i=0
+  primary=$(primary_of "$want")
+
+  if shell_ok "$want"; then
+    return 0
+  fi
+
+  if ! qs_running; then
+    log "shell: qs down — start"
+    start_noctalia
+  fi
+
+  loops=$(awk -v s="$SHELL_WAIT" 'BEGIN{printf "%d", (s/0.1)+0.5}')
+  while (( i < loops )); do
+    shell_ok "$want" && return 0
+    sleep 0.1
+    i=$((i + 1))
+  done
+
+  if shell_ok "$want"; then
+    return 0
+  fi
+
+  if ! qs_running; then
+    log "shell: qs still down after wait — restart"
+    restart_noctalia
+  elif ! any_noctalia_layers; then
+    # Process up but nothing drawn anywhere → zombie instance
+    log "shell: qs up but zero noctalia layers — restart zombie"
+    restart_noctalia
+  else
+    # Surfaces exist (maybe still binding to primary) — do NOT kill healthy shell
+    log "shell: surfaces present; primary=$primary not ready yet — leave alone"
+    return 0
+  fi
+
+  i=0
+  while (( i < 40 )); do
+    shell_ok "$want" && return 0
+    sleep 0.1
+    i=$((i + 1))
+  done
+  log "WARN shell weak want=$want primary=$primary qs=$(qs_running && echo up || echo down) layers=$(any_noctalia_layers && echo yes || echo no)"
+  return 1
+}
+
+# ── Core: one reconcile path ──────────────────────────────────────
+# reason tags the trigger for logs.
+# care_shell=1 → also evaluate shell (default).
+# care_shell=0 → displays only (idle drift check uses this carefully).
+_reconcile_body() {
+  local reason="${1:-sync}"
+  local care_shell="${2:-1}"
+  ensure_hypr || { log "skip no-hypr reason=$reason"; return 1; }
+
+  local want primary prev disp_ok=0
+  want=$(policy)
+  primary=$(primary_of "$want")
+  prev=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+  reality_ok "$want" && disp_ok=1
+
+  log "reconcile reason=$reason want=$want prev=$prev disp_ok=$disp_ok care_shell=$care_shell top=$(topology_key) active=$(active_csv)"
+
+  if (( disp_ok == 0 )); then
+    enforce "$want" || true
+    # Layout changed → shell may need a moment to rebind; always care
+    ensure_shell "$want" || true
+  elif (( care_shell == 1 )); then
+    if ! shell_ok "$want"; then
+      log "displays ok; shell needs care primary=$primary"
+      ensure_shell "$want" || true
+    fi
+  fi
+
+  # Final hard invariant
+  if [[ "$(lid_state)" == "closed" ]] && monitor_active "$LAPTOP"; then
+    if monitor_active "$EXTERNAL"; then
+      log "FINAL HARD off $LAPTOP"
+      disable_mon "$LAPTOP"
+      focus_mon "$EXTERNAL"
+    fi
+  fi
+
+  printf '%s\n' "$want" >"$STATE_FILE"
+  log "done want=$(cat "$STATE_FILE") active=$(active_csv) shell=$(shell_ok "$want" && echo ok || echo weak)"
+}
+
+reconcile() {
+  local reason="${1:-sync}"
+  local care_shell="${2:-1}"
+  with_lock _reconcile_body "$reason" "$care_shell"
+}
+
+# ── Event wait ────────────────────────────────────────────────────
+# Only topology (lid/DRM) and true monitor IPC names.
+# Hypr format: name>>payload  — match NAME only, never payload text.
+wait_event() {
+  local timeout="${1:-$POLL_SEC}"
+  local sock top0
+  sock=$(socket2_path 2>/dev/null || true)
+  top0=$(topology_key)
+
+  python3 - "$timeout" "$sock" "$top0" "$EXTERNAL" "$LAPTOP" <<'PY'
+import os, sys, time, socket, select, glob
+
+timeout = float(sys.argv[1])
+sock_path = sys.argv[2]
+top0 = sys.argv[3]
+external = sys.argv[4]
+laptop = sys.argv[5]
+
+# Exact event names (prefix before >>). Substring match on full line is FORBIDDEN:
+# screencast>>1,monitor used to false-trigger on the word "monitor".
+RELEVANT = frozenset({
+    "monitoradded",
+    "monitorremoved",
+    "monitoraddedv2",
+    "monitorremovedv2",
+    "configreloaded",
+})
+
+def topology():
+    lid = "unknown"
+    try:
+        for p in glob.glob("/proc/acpi/button/lid/*/state"):
+            with open(p) as f:
+                parts = f.read().split()
+                if len(parts) >= 2:
+                    lid = parts[1]
+            break
+    except Exception:
+        pass
+
+    def drm(name):
+        paths = glob.glob(f"/sys/class/drm/card*-{name}")
+        if not paths:
+            return "missing"
+        try:
+            return open(os.path.join(paths[0], "status")).read().strip()
+        except Exception:
+            return "unknown"
+
+    return f"{lid}|ext={drm(external)}|lap={drm(laptop)}"
+
+deadline = time.monotonic() + timeout
+s = None
+if sock_path and os.path.exists(sock_path):
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.setblocking(False)
+        s.connect(sock_path)
+    except Exception:
+        s = None
+
+buf = b""
+while time.monotonic() < deadline:
+    top = topology()
+    if top != top0:
+        print(f"topology:{top}", flush=True)
+        sys.exit(0)
+
+    wait = min(0.25, max(0.05, deadline - time.monotonic()))
+    rlist = [s] if s is not None else []
+    try:
+        r, _, _ = select.select(rlist, [], [], wait)
+    except Exception:
+        r = []
+
+    if s is not None and s in r:
+        try:
+            chunk = s.recv(4096)
+        except BlockingIOError:
+            chunk = b""
+        except Exception:
+            chunk = b""
+            s = None
+        if chunk:
+            buf += chunk
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                try:
+                    text = line.decode("utf-8", "replace").strip()
+                except Exception:
+                    continue
+                if not text:
+                    continue
+                name = text.split(">>", 1)[0].lower()
+                if name in RELEVANT:
+                    print(f"hypr:{text}", flush=True)
+                    sys.exit(0)
+
+print("timeout", flush=True)
+sys.exit(0)
+PY
+}
+
+# ── Daemon ────────────────────────────────────────────────────────
+cmd_daemon() {
+  load_conf
+  log "daemon start v$VERSION pid=$$"
+
+  exec 9>"$LOCK_FILE.daemon"
+  if ! flock -n 9; then
+    log "daemon already running — exit"
+    exit 0
+  fi
+  printf '%s\n' "$$" >"$DAEMON_PID_FILE"
+  trap 'rm -f "$DAEMON_PID_FILE"; log "daemon stop"; exit 0' INT TERM EXIT
+
+  local i=0
+  while ! ensure_hypr; do
+    sleep 0.4
+    i=$((i + 1))
+    if (( i > 150 )); then
+      log "FATAL: hypr never appeared"
+      exit 1
+    fi
+  done
+  log "hypr ready sig=$HYPRLAND_INSTANCE_SIGNATURE"
+
+  reconcile "daemon-start" 1 || true
+
+  local pending=0 event idle_n=0
+
+  while true; do
+    ensure_hypr || { sleep 1; continue; }
+
+    event=$(wait_event "$POLL_SEC" || true)
+    case "$event" in
+      topology:*)
+        log "event $event"
+        pending=1
+        idle_n=0
+        ;;
+      hypr:*)
+        log "event $event"
+        pending=1
+        idle_n=0
+        ;;
+      timeout|"")
+        # Displays only on idle — never restart shell just because we polled
+        if ! reality_ok "$(policy)" 2>/dev/null; then
+          log "idle display drift"
+          pending=1
+          idle_n=0
+        elif [[ "$(lid_state)" == "closed" ]] && monitor_active "$LAPTOP"; then
+          log "idle HARD lid"
+          pending=1
+          idle_n=0
+        else
+          idle_n=$((idle_n + 1))
+          # Occasional liveness: only if qs died. Never restart thrash on slow paint.
+          if (( idle_n >= SHELL_IDLE_CHECKS )); then
+            idle_n=0
+            if ! qs_running; then
+              log "idle qs dead — care"
+              reconcile "idle-shell" 1 || true
+            fi
+          fi
+        fi
+        ;;
+    esac
+
+    if (( pending == 1 )); then
+      sleep "$DEBOUNCE_SEC"
+      local drain=0
+      while (( drain < 6 )); do
+        event=$(wait_event 0.12 || true)
+        case "$event" in
+          topology:*|hypr:*) log "coalesce $event"; drain=$((drain + 1)) ;;
+          *) break ;;
+        esac
+      done
+      # Real topology / monitor / reload → full care (displays + shell)
+      reconcile "event" 1 || true
+      pending=0
+    fi
+  done
+}
+
+# ── CLI ───────────────────────────────────────────────────────────
+cmd_status() {
+  load_conf
+  ensure_hypr || echo "hypr: unavailable"
+  local want primary
+  want=$(policy)
+  primary=$(primary_of "$want")
+  echo "t7-display v$VERSION"
+  echo "lid=$(lid_state)"
+  echo "drm $LAPTOP=$(drm_status "$LAPTOP")"
+  echo "drm $EXTERNAL=$(drm_status "$EXTERNAL")"
+  echo "policy=$want"
+  echo "reality_ok=$(reality_ok "$want" && echo yes || echo NO)"
+  echo "shell_ok=$(shell_ok "$want" && echo yes || echo NO)"
+  echo "bar_primary=$(bar_present "$primary" && echo yes || echo NO) ($primary)"
+  echo "active=$(active_csv)"
+  echo "state=$(cat "$STATE_FILE" 2>/dev/null || echo none)"
+  echo "daemon_pid=$(cat "$DAEMON_PID_FILE" 2>/dev/null || echo none)"
+  echo "daemon_alive=$(if [[ -f $DAEMON_PID_FILE ]] && kill -0 "$(cat "$DAEMON_PID_FILE" 2>/dev/null)" 2>/dev/null; then echo yes; else echo no; fi)"
+  echo "qs=$(qs_running && echo up || echo down)"
+  echo "service=$(systemctl --user is-active t7-display.service 2>/dev/null || echo n/a)"
+  hyprctl monitors 2>/dev/null | grep -E 'Monitor |disabled:|scale:|at |focused:|dpms' || true
+  hyprctl layers 2>/dev/null | grep -E 'Monitor |bar-content' || true
+}
+
+cmd_doctor() {
+  load_conf
+  echo "=== t7-display doctor v$VERSION ==="
+  echo "conf: $CONF $([ -f "$CONF" ] && echo OK || echo MISSING)"
+  echo "bin:  $0"
+  echo "log:  $LOG"
+  ensure_hypr && echo "hypr: OK sig=$HYPRLAND_INSTANCE_SIGNATURE" || echo "hypr: FAIL"
+  echo "lid:  $(lid_state)"
+  echo "drm:  $LAPTOP=$(drm_status "$LAPTOP")  $EXTERNAL=$(drm_status "$EXTERNAL")"
+  local want primary
+  want=$(policy)
+  primary=$(primary_of "$want")
+  echo "policy: $want  primary: $primary"
+  echo "reality: $(reality_ok "$want" && echo OK || echo DRIFT)"
+  echo "shell:   $(shell_ok "$want" && echo OK || echo WEAK)"
+  echo "bar:     $(bar_present "$primary" && echo OK || echo MISSING) on $primary"
+  echo "active:  $(active_csv)"
+  systemctl --user status t7-display.service --no-pager 2>&1 | head -12 || true
+  echo "=== last log ==="
+  tail -25 "$LOG" 2>/dev/null || true
+}
+
+cmd_ensure_service() {
+  if systemctl --user cat t7-display.service >/dev/null 2>&1; then
+    systemctl --user start t7-display.service 2>/dev/null || true
+    sleep 0.05
+    # ensure only pokes displays+shell once; daemon owns the loop
+    reconcile "ensure-service" 1 || true
+  else
+    if [[ -f "$DAEMON_PID_FILE" ]] && kill -0 "$(cat "$DAEMON_PID_FILE")" 2>/dev/null; then
+      reconcile "ensure-daemon" 1 || true
+    else
+      setsid "$0" daemon </dev/null >/dev/null 2>&1 &
+      sleep 0.25
+      reconcile "ensure-spawn" 1 || true
+    fi
+  fi
+}
+
+usage() {
+  cat <<EOF
+t7-display v$VERSION — Hyprland multi-monitor + shell authority
+
+  auto | heal | sync     Reconcile now
+  daemon                 Long-running brain (systemd)
+  ensure                 Start service + one reconcile (Hyprland boot/reload)
+  status | doctor        Diagnostics
+  lid-close | lid-open   → auto
+  hotplug                Debounced auto
+
+Config: $CONF
+Log:    $LOG
+EOF
+}
+
+main() {
+  load_conf
+  case "${1:-auto}" in
+    auto|sync|heal)
+      reconcile "$1" 1
+      ;;
+    lid-close|on|lid-open|off)
+      sleep 0.12
+      reconcile "$1" 1
+      ;;
+    hotplug)
+      sleep "$DEBOUNCE_SEC"
+      reconcile "hotplug" 1
+      ;;
+    daemon)         cmd_daemon ;;
+    ensure)         cmd_ensure_service ;;
+    status)         cmd_status ;;
+    doctor)         cmd_doctor ;;
+    -h|--help|help) usage ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"

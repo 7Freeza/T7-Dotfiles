@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 # Finalize Zen Browser theme after Noctalia regenerates colors.
-# Runs on colorGeneration hook (after templates + zenBrowser postProcess).
-set -euo pipefail
-
+# Safe for colorGeneration hook: never reloads compositor, never kills qs.
+set -u
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/noctalia/zen-browser"
 CONTENT="${CACHE}/zen-userContent.css"
 MARKER="/* Pane UI button visibility issue fix */"
 
-if [[ -f "$CONTENT" ]] && grep -qF "$MARKER" "$CONTENT"; then
-  python3 - "$CONTENT" "$MARKER" <<'PY'
+if [[ -f "$CONTENT" ]] && command -v python3 >/dev/null 2>&1 && grep -qF "$MARKER" "$CONTENT" 2>/dev/null; then
+  python3 - "$CONTENT" "$MARKER" <<'PY' 2>/dev/null || true
 import sys
 from pathlib import Path
-
 path = Path(sys.argv[1])
 marker = sys.argv[2]
 text = path.read_text()
@@ -22,22 +20,17 @@ fi
 
 while IFS= read -r dir; do
   [[ -d "$dir" ]] || continue
-
-  ln -sfn "$CACHE/zen-userChrome.css" "$dir/noctalia-cache-userChrome.css"
-  ln -sfn "$CACHE/zen-userContent.css" "$dir/noctalia-cache-userContent.css"
-
+  ln -sfn "$CACHE/zen-userChrome.css" "$dir/noctalia-cache-userChrome.css" 2>/dev/null || true
+  ln -sfn "$CACHE/zen-userContent.css" "$dir/noctalia-cache-userContent.css" 2>/dev/null || true
   cat > "$dir/noctalia-zen-userChrome.css" <<'EOF'
 @namespace xul "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 @namespace html "http://www.w3.org/1999/xhtml";
 
 @import "noctalia-cache-userChrome.css";
 EOF
-
   printf '%s\n' '@import "noctalia-cache-userContent.css";' > "$dir/noctalia-zen-userContent.css"
-
-  # Single import chain; overrides Noctalia's appended absolute-path imports.
   printf '%s\n' '@import "noctalia-zen-userChrome.css";' > "$dir/userChrome.css"
   printf '%s\n' '@import "noctalia-zen-userContent.css";' > "$dir/userContent.css"
-done < <(
-  find "$HOME/.config/zen" "$HOME/.zen" -mindepth 2 -maxdepth 2 -type d -name chrome 2>/dev/null
-)
+done < <(find "$HOME/.config/zen" "$HOME/.zen" -mindepth 2 -maxdepth 2 -type d -name chrome 2>/dev/null)
+
+exit 0

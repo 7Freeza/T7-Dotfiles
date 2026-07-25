@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Cicla al siguiente wallpaper usando solo IPC de Noctalia.
+set -euo pipefail
+
+SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/noctalia/settings.json"
+DIR="${NOCTALIA_WALLPAPER_DIR:-}"
+
+if [[ -z "$DIR" && -f "$SETTINGS" ]]; then
+  DIR=$(python3 - <<'PY'
+import json, os
+p = os.path.expanduser("~/.config/noctalia/settings.json")
+try:
+    print(json.load(open(p))["wallpaper"]["directory"])
+except Exception:
+    pass
+PY
+)
+fi
+DIR="${DIR:-$HOME/Wallpapers}"
+
+QS=(qs -c noctalia-shell ipc call wallpaper)
+current="$("${QS[@]}" get)"
+
+mapfile -t files < <(
+  find -L "$DIR" -maxdepth 1 -type f \( \
+    -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \
+    -o -iname '*.webp' -o -iname '*.bmp' -o -iname '*.gif' \
+  \) -printf '%f\t%p\n' | LC_ALL=C sort -r -t $'\t' -k1,1 | cut -f2-
+)
+
+if ((${#files[@]} == 0)); then
+  echo "No hay wallpapers en $DIR" >&2
+  exit 1
+fi
+
+idx=-1
+for i in "${!files[@]}"; do
+  if [[ "${files[$i]}" == "$current" ]]; then
+    idx=$i
+    break
+  fi
+done
+
+next=$(( (idx + 1) % ${#files[@]} ))
+"${QS[@]}" set "${files[$next]}"

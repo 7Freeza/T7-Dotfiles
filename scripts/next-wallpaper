@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Cicla al siguiente wallpaper usando solo IPC de Noctalia.
-set -euo pipefail
+# Cycle wallpaper via Noctalia IPC only. Never reloads compositor / never kills shell.
+set -u
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/noctalia/settings.json"
 DIR="${NOCTALIA_WALLPAPER_DIR:-}"
 
 if [[ -z "$DIR" && -f "$SETTINGS" ]]; then
-  DIR=$(python3 - <<'PY'
-import json, os
-p = os.path.expanduser("~/.config/noctalia/settings.json")
+  DIR=$(python3 - <<'PY' 2>/dev/null || true
+import json
+from pathlib import Path
 try:
-    print(json.load(open(p))["wallpaper"]["directory"])
+    print(json.loads(Path.home().joinpath(".config/noctalia/settings.json").read_text())["wallpaper"]["directory"])
 except Exception:
     pass
 PY
@@ -18,18 +19,22 @@ PY
 fi
 DIR="${DIR:-$HOME/Wallpapers}"
 
-QS=(qs -c noctalia-shell ipc call wallpaper)
-current="$("${QS[@]}" get)"
+if ! command -v qs >/dev/null 2>&1; then
+  echo "qs not found" >&2
+  exit 1
+fi
+
+current=$(qs -c noctalia-shell ipc call wallpaper get 2>/dev/null || true)
 
 mapfile -t files < <(
   find -L "$DIR" -maxdepth 1 -type f \( \
     -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \
     -o -iname '*.webp' -o -iname '*.bmp' -o -iname '*.gif' \
-  \) -printf '%f\t%p\n' | LC_ALL=C sort -r -t $'\t' -k1,1 | cut -f2-
+  \) -printf '%f\t%p\n' 2>/dev/null | LC_ALL=C sort -r -t $'\t' -k1,1 | cut -f2-
 )
 
 if ((${#files[@]} == 0)); then
-  echo "No hay wallpapers en $DIR" >&2
+  echo "No wallpapers in $DIR" >&2
   exit 1
 fi
 
@@ -42,4 +47,5 @@ for i in "${!files[@]}"; do
 done
 
 next=$(( (idx + 1) % ${#files[@]} ))
-"${QS[@]}" set "${files[$next]}"
+qs -c noctalia-shell ipc call wallpaper set "${files[$next]}" 2>/dev/null || exit 1
+exit 0

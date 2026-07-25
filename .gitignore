@@ -13,11 +13,18 @@ Thumbs.db
 **/logins.db
 **/cookies.sqlite
 **/key4.db
+**/*api*key*
+**/.env
+**/.env.*
+**/id_rsa*
+**/id_ed25519*
+**/*password*
 
 # Runtime junk if someone copies raw app dirs
 config/vesktop/sessionData/
 config/vesktop/Crashpad/
 config/vesktop/Singleton*
+config/vesktop/**/Local Storage/
 config/zen/**/storage/
 config/zen/**/cache2/
 config/zen/**/*.sqlite*
@@ -25,6 +32,14 @@ config/zen/**/logins.json
 config/code-oss/User/History/
 config/code-oss/User/globalStorage/
 config/code-oss/User/workspaceStorage/
+**/Cache/
+**/GPUCache/
+**/Code Cache/
 
+# Local only
 .dotfiles-installed
 .backup/
+migration-from-niri/**/secrets*
+**/__pycache__/
+*.part
+

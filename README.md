@@ -1,67 +1,80 @@
 <div align="center">
 
-# T7 Dotfiles
+# T7 Dotfiles **v3**
 
-**Wallpaper-driven Material You** on [Niri](https://github.com/YaLTeR/niri) + [Noctalia Shell](https://github.com/noctalia-dev/noctalia-shell)
+**Wallpaper-driven Material You** on [Hyprland](https://hyprland.org/) + [Noctalia Shell](https://github.com/noctalia-dev/noctalia-shell)
 
-[**7Freeza**](https://github.com/7Freeza) · CachyOS · Kitty · Starship · Zen · Vesktop · Code - OSS
+[**7Freeza**](https://github.com/7Freeza) · CachyOS · Kitty · Starship · Zen · Vesktop (system24) · Code - OSS
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-8b949e?style=flat-square)](LICENSE)
-[![Niri](https://img.shields.io/badge/WM-Niri-58a6ff?style=flat-square)](https://github.com/YaLTeR/niri)
+[![Hyprland](https://img.shields.io/badge/WM-Hyprland-58a6ff?style=flat-square)](https://hyprland.org/)
 [![Noctalia](https://img.shields.io/badge/Shell-Noctalia-6e7681?style=flat-square)](https://github.com/noctalia-dev/noctalia-shell)
+[![Version](https://img.shields.io/badge/release-v3-2ea44f?style=flat-square)](#)
 
 <br/>
 
-<img src="screenshots/01-azul.png" alt="T7 rice — cool palette" width="920"/>
+<img src="recursos-hyprland/gallery/01-azul.png" alt="T7 rice — cool palette" width="920"/>
 
 </div>
+
+---
+
+## What’s new in v3
+
+- **Primary stack: Hyprland 0.56 Lua** + Noctalia (was Niri in v2)
+- Full **keybind map**, multi-monitor / lid via **`t7-display`**
+- Dual keyboard policy (laptop **latam** + Redragon K630 custom XKB)
+- Screenshots (`t7-screenshot`), wallpaper cycle, system24 Discord
+- **`recursos-hyprland/`** — gallery + docs used by this README
+- Installer skips secrets (no Vesktop session, no tokens, `@@HOME@@` expand)
+
+Niri configs remain under `config/niri/` as **legacy / optional** (`DOTFILES_NIRI=1`).
 
 ---
 
 ## Features
 
-- **Live Material You colors** from the wallpaper (`muted` generation)
-- **Whole desktop in sync** — bar, Kitty, Starship, Niri borders, Zen, Vesktop (system24), VS Code, btop, cava, fastfetch
-- **Animated wallpaper cycle** — `Super+Shift+W` recolors the rice with the wall
-- **Compact frame shadow** — square corners, solid drop shadow
-- **Half-width by default** — columns open at 50%
-- **Floating windows** — `Super+V`
-- **Install script** + shipped wallpapers
+- **Live Material You** from wallpaper (`muted` / tonal generation via Noctalia)
+- **Desktop in sync** — bar, Kitty, Starship, Hypr borders, Zen hooks, Vesktop **system24**, VS Code, btop, cava, fastfetch
+- **Animated wallpaper cycle** — `Super+Shift+W` recolors the rice
+- Subtle rounded corners, snappy window anims
+- **Clamshell + HDMI** policy daemon (`t7-display.service`)
+- `install.sh` + wallpapers + gallery
 
 ---
 
 ## Gallery
 
+Images live in [`recursos-hyprland/gallery/`](recursos-hyprland/gallery/).
+
 ### Cool palette
 
 | | |
 |:---:|:---:|
-| <img src="screenshots/01-azul.png" width="420"/> | <img src="screenshots/02-azul.png" width="420"/> |
-| <img src="screenshots/03-azul.png" width="420"/> | <img src="screenshots/04-azul.png" width="420"/> |
+| <img src="recursos-hyprland/gallery/01-azul.png" width="420"/> | <img src="recursos-hyprland/gallery/02-azul.png" width="420"/> |
+| <img src="recursos-hyprland/gallery/03-azul.png" width="420"/> | <img src="recursos-hyprland/gallery/04-azul.png" width="420"/> |
 
 ### Warm palette
 
 | | |
 |:---:|:---:|
-| <img src="screenshots/05-amarillo.png" width="420"/> | <img src="screenshots/06-amarillo.png" width="420"/> |
-| <img src="screenshots/07-amarillo.png" width="420"/> | <img src="screenshots/08-amarillo.png" width="420"/> |
+| <img src="recursos-hyprland/gallery/05-amarillo.png" width="420"/> | <img src="recursos-hyprland/gallery/06-amarillo.png" width="420"/> |
+| <img src="recursos-hyprland/gallery/07-amarillo.png" width="420"/> | <img src="recursos-hyprland/gallery/08-amarillo.png" width="420"/> |
 
 ### Wallpaper cycle
 
-Colors follow the wall across the rice (terminal, Discord, editor, bar).
-
 <div align="center">
-  <img src="screenshots/wallpaper-cycle.gif" alt="Wallpaper cycle with live recolor" width="720"/>
+  <img src="recursos-hyprland/gallery/wallpaper-cycle.gif" alt="Wallpaper cycle with live recolor" width="720"/>
 </div>
 
-Full clip: [`screenshots/wallpaper-cycle.mp4`](screenshots/wallpaper-cycle.mp4)
+Also: [`screenshots/`](screenshots/) (legacy v2 paths still valid).
 
 ---
 
 ## Quick start
 
 > [!NOTE]
-> Install **Niri**, **Noctalia Shell**, and deps first.  
+> Install **Hyprland (≥ 0.56)**, **Noctalia Shell / qs**, and deps first.  
 > See [docs/dependencies.md](docs/dependencies.md).
 
 ```bash
@@ -70,89 +83,111 @@ cd ~/T7-Dotfiles
 ./install.sh
 ```
 
-Restart niri + noctalia-shell, then **pick a wallpaper once** so colors generate.
+Then:
+
+```bash
+systemctl --user enable --now t7-display.service   # multi-monitor / lid
+qs -c noctalia-shell &
+```
+
+Pick a wallpaper once so colors generate. In Vesktop, enable the **system24** theme.
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `DOTFILES_LINK=0` | `1` (symlink) | Copy files instead |
+| `DOTFILES_LINK=0` | `1` (symlink where safe) | Copy files instead |
 | `DOTFILES_WALLPAPERS=0` | `1` | Skip wallpaper install |
+| `DOTFILES_NIRI=1` | `0` | Also install legacy Niri configs |
 
 ---
 
-## Keybinds
+## Keybinds (highlights)
 
 | Key | Action |
 |-----|--------|
 | `Super+Space` | Launcher |
 | `Super+Q` | Kitty |
 | `Super+W` | Zen Browser |
+| `Super+E` | Files |
 | `Super+V` | Toggle floating |
-| `Super+T` | Stack into column |
-| `Super+B` | Column tabs |
+| `Super+T` | Toggle group |
 | `Super+ñ` / `Super+{` | Shrink / grow width |
-| `Super+Shift+ñ` / `Super+Shift+{` | Shrink / grow height |
 | `Super+Shift+W` | Next wallpaper |
 | `Super+Shift+I` | Wallpaper selector |
-| `Super+O` | Overview |
+| `Ctrl+Shift+1` | Region screenshot |
 
-Full list: `config/niri/cfg/keybinds.kdl`.
-
----
-
-## Color pipeline
-
-```text
-wallpaper change
-      ↓
-Noctalia Material You (muted)
-      ↓
-Kitty · Niri · Starship · Zen · btop · cava
-Vesktop · fastfetch · aesthetic.env · VS Code
-      ↓
-fix-zen-noctalia-theme (clean Zen CSS chain)
-```
+**Full table:** [recursos-hyprland/docs/KEYBINDS.md](recursos-hyprland/docs/KEYBINDS.md)  
+**Source:** [`config/hypr/hyprland.lua`](config/hypr/hyprland.lua)
 
 ---
 
-## Layout
+## Layout of this repo
 
 ```text
-config/     niri · noctalia · kitty · fish · vesktop · zen · …
-scripts/    next-wallpaper · fix-zen-noctalia-theme · zen-browser
-wallpapers/
-screenshots/
-docs/
+config/
+  hypr/           # hyprland.lua + conf + noctalia colors
+  noctalia/       # settings (@@HOME@@), templates, system24 discord.css
+  vesktop/        # system24.theme.css only (+ minimal settings.json)
+  t7/             # display policy
+  xkb/            # Redragon K630 maps
+  systemd/user/   # t7-display.service
+  kitty fish …    # aesthetic stack
+  niri/           # legacy optional
+scripts/          # t7-display, screenshot, keyboard, wallpaper, zen…
+wallpapers/       # shipped walls → ~/Wallpapers
+recursos-hyprland/
+  gallery/        # README images
+  docs/           # KEYBINDS.md
+docs/             # dependencies
 install.sh
 ```
 
-More detail: [docs/structure.md](docs/structure.md).
+---
+
+## Security / clean install
+
+This release is meant to be **safe to clone**:
+
+- No Vesktop `sessionData`, cookies, or Discord tokens  
+- No browser profiles / password DBs  
+- No API keys  
+- Paths use `@@HOME@@` and expand at install time  
+- Machine-specific monitors still work via `t7-display` + editable `~/.config/t7/display.conf`
+
+If you fork: never commit `~/.config/vesktop/sessionData` or raw browser profiles.
 
 ---
 
-## Post-install
+## Discord system24
 
-1. Dependencies from [docs/dependencies.md](docs/dependencies.md)
-2. Restart **niri** + **noctalia-shell**
-3. Set a wallpaper in Noctalia
-4. **Vesktop** → Themes → **system24**
-5. **Code - OSS** → Noctalia theme extension → `NoctaliaTheme`
+- Theme file: [`config/vesktop/themes/system24.theme.css`](config/vesktop/themes/system24.theme.css)
+- Noctalia Matugen template: [`config/noctalia/templates/discord.css`](config/noctalia/templates/discord.css)
 
----
-
-## Privacy
-
-Aesthetic configs only — no Discord sessions, browser logins, or personal paths.  
-Machine paths use `@@HOME@@` and expand on install.
+Enable the theme inside Vesktop after install. Colors track wallpaper when templates regenerate.
 
 ---
 
-## Credits
+## Multi-monitor & lid
 
-- [Niri](https://github.com/YaLTeR/niri)
-- [Noctalia Shell](https://github.com/noctalia-dev/noctalia-shell)
-- [system24](https://github.com/refact0r/system24) — Vesktop theme base  
-- Wallpapers: respect original artists if redistributed
+`t7-display` is the single authority for eDP + HDMI clamshell:
+
+```bash
+t7-display status
+t7-display ensure
+systemctl --user status t7-display.service
+```
+
+Policy file: `~/.config/t7/display.conf` (shipped defaults for eDP-1 / HDMI-A-1).
+
+---
 
 ## License
 
-[MIT](LICENSE) for configs and scripts.
+MIT — see [LICENSE](LICENSE).
+
+---
+
+<div align="center">
+
+Built for daily driving · **v3 · Hyprland + Noctalia**
+
+</div>

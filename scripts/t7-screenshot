@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# T7 screenshots for Hyprland
+# Modes: region | full | window
+# Prefers grim+slurp; falls back to gpu-screen-recorder / portal.
+set -u
+MODE="${1:-full}"
+OUT_DIR="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+mkdir -p "$OUT_DIR"
+STAMP=$(date +%Y-%m-%d_%H-%M-%S)
+PNG="$OUT_DIR/Screenshot_${STAMP}.png"
+
+# Hyprland keybinds often have a minimal PATH — force user bins first.
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin${PATH:+:$PATH}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+  for d in "$XDG_RUNTIME_DIR"/hypr/*/; do
+    [[ -e "${d}hyprland.lock" ]] || continue
+    export HYPRLAND_INSTANCE_SIGNATURE
+    HYPRLAND_INSTANCE_SIGNATURE="$(basename "$d")"
+    break
+  done
+fi
+
+GRIM="$(command -v grim 2>/dev/null || true)"
+SLURP="$(command -v slurp 2>/dev/null || true)"
+[[ -x "$HOME/.local/bin/grim" ]] && GRIM="$HOME/.local/bin/grim"
+[[ -x "$HOME/.local/bin/slurp" ]] && SLURP="$HOME/.local/bin/slurp"
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -a T7 "Screenshot" "$1" || true
+}
+
+copy_clip() {
+  if command -v wl-copy >/dev/null 2>&1 && [[ -f "$1" ]]; then
+    wl-copy --type image/png <"$1" 2>/dev/null || true
+  fi
+}
+
+shot_grim_full() {
+  [[ -n "$GRIM" && -x "$GRIM" ]] || return 1
+  "$GRIM" "$PNG"
+}
+
+shot_grim_region() {
+  [[ -n "$GRIM" && -x "$GRIM" ]] || return 1
+  [[ -n "$SLURP" && -x "$SLURP" ]] || return 1
+  local geo
+  # Crosshair region select (like before on Niri)
+  geo=$("$SLURP" -d 2>/dev/null) || return 1
+  [[ -n "$geo" ]] || return 1
+  "$GRIM" -g "$geo" "$PNG"
+}
+
+shot_grim_window() {
+  [[ -n "$GRIM" && -x "$GRIM" ]] || return 1
+  command -v hyprctl >/dev/null 2>&1 || return 1
+  local geo
+  geo=$(hyprctl activewindow -j 2>/dev/null | python3 -c '
+import sys,json
+try:
+  w=json.load(sys.stdin)
+  a=w.get("at") or [0,0]
+  s=w.get("size") or [0,0]
+  if not s[0] or not s[1]:
+    raise SystemExit(1)
+  print(f"{a[0]},{a[1]} {s[0]}x{s[1]}")
+except Exception:
+  raise SystemExit(1)
+' 2>/dev/null) || return 1
+  "$GRIM" -g "$geo" "$PNG"
+}
+
+shot_gsr_full() {
+  command -v gpu-screen-recorder >/dev/null 2>&1 || return 1
+  command -v ffmpeg >/dev/null 2>&1 || return 1
+  local vid
+  vid=$(mktemp /tmp/t7shot-XXXXXX.mp4)
+  timeout 1.2 gpu-screen-recorder -w screen -f 30 -c mp4 -k h264 -cursor yes -o "$vid" >/dev/null 2>&1 || true
+  if [[ ! -s "$vid" ]]; then rm -f "$vid"; return 1; fi
+  ffmpeg -y -i "$vid" -update 1 -frames:v 1 -q:v 2 "$PNG" >/dev/null 2>&1 || { rm -f "$vid"; return 1; }
+  rm -f "$vid"
+  [[ -s "$PNG" ]]
+}
+
+shot_gsr_focused() {
+  command -v gpu-screen-recorder >/dev/null 2>&1 || return 1
+  command -v ffmpeg >/dev/null 2>&1 || return 1
+  local vid
+  vid=$(mktemp /tmp/t7shot-XXXXXX.mp4)
+  timeout 1.2 gpu-screen-recorder -w focused -f 30 -c mp4 -k h264 -cursor yes -o "$vid" >/dev/null 2>&1 || true
+  if [[ ! -s "$vid" ]]; then rm -f "$vid"; return 1; fi
+  ffmpeg -y -i "$vid" -update 1 -frames:v 1 -q:v 2 "$PNG" >/dev/null 2>&1 || { rm -f "$vid"; return 1; }
+  rm -f "$vid"
+  [[ -s "$PNG" ]]
+}
+
+# Interactive portal (region/UI from compositor portal)
+shot_portal() {
+  command -v gdbus >/dev/null 2>&1 || return 1
+  # Fire interactive screenshot — portal UI for area
+  gdbus call --session \
+    --dest org.freedesktop.portal.Desktop \
+    --object-path /org/freedesktop/portal/desktop \
+    --method org.freedesktop.portal.Screenshot.Screenshot \
+    '' '{"interactive": <true>}' >/dev/null 2>&1 || return 1
+  # Portal saves its own file; we just notify
+  notify "Selector del sistema abierto (portal)"
+  return 0
+}
+
+ok_save() {
+  [[ -f "$PNG" && -s "$PNG" ]] || return 1
+  copy_clip "$PNG"
+  notify "$PNG"
+  echo "$PNG"
+}
+
+case "$MODE" in
+  region|area|1)
+    if shot_grim_region && ok_save; then exit 0; fi
+    # No slurp: open portal area UI
+    if shot_portal; then exit 0; fi
+    notify "Falta grim+slurp (selector de región)"
+    exit 1
+    ;;
+  window|3)
+    if shot_grim_window && ok_save; then exit 0; fi
+    if shot_gsr_focused && ok_save; then exit 0; fi
+    if shot_gsr_full && ok_save; then exit 0; fi
+    exit 1
+    ;;
+  full|output|2|*)
+    if shot_grim_full && ok_save; then exit 0; fi
+    if shot_gsr_full && ok_save; then exit 0; fi
+    exit 1
+    ;;
+esac

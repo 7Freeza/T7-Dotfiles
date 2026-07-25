@@ -1,0 +1,23 @@
+[Unit]
+Description=T7 Display Manager (Hyprland multi-monitor + lid)
+Documentation=file://%h/.local/bin/t7-display
+# Do not bind hard to graphical-session — Hyprland may not set it.
+# The daemon waits for hyprctl itself.
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/t7-display daemon
+Restart=always
+RestartSec=2
+KillMode=mixed
+TimeoutStopSec=5
+# Inherit user session env (Wayland/Hypr) when available.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
+PassEnvironment=WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_RUNTIME_DIR XDG_CURRENT_DESKTOP
+
+# Hardening (keep simple — needs hyprctl + /sys + dbus)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

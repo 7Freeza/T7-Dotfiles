@@ -1,0 +1,9 @@
+// ────────────── Gestures ──────────────
+// https://niri-wm.github.io/niri/Configuration:-Gestures
+
+gestures {
+    // Overview solo con Super+O (keybinds.kdl). Sin hot-corner en esquinas.
+    hot-corners {
+        off
+    }
+}

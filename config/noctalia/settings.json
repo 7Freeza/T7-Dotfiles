@@ -41,19 +41,19 @@
     "autoHideDelay": 500,
     "autoShowDelay": 150,
     "backgroundOpacity": 1,
-    "barType": "simple",
+    "barType": "framed",
     "capsuleColorKey": "none",
     "capsuleOpacity": 0,
     "contentPadding": 0,
-    "density": "compact",
+    "density": "mini",
     "displayMode": "always_visible",
     "enableExclusionZoneInset": true,
     "fontScale": 0.79,
     "frameRadius": 12,
     "frameThickness": 8,
     "hideOnOverview": false,
-    "marginHorizontal": 500,
-    "marginVertical": 14,
+    "marginHorizontal": 12,
+    "marginVertical": 0,
     "middleClickAction": "none",
     "middleClickCommand": "",
     "middleClickFollowMouse": false,
@@ -61,7 +61,7 @@
     "mouseWheelAction": "volume",
     "mouseWheelWrap": true,
     "outerCorners": true,
-    "position": "top",
+    "position": "left",
     "reverseScroll": false,
     "rightClickAction": "controlCenter",
     "rightClickCommand": "",
@@ -236,7 +236,7 @@
   },
   "colorSchemes": {
     "darkMode": true,
-    "generationMethod": "rainbow",
+    "generationMethod": "tonal-spot",
     "manualSunrise": "06:30",
     "manualSunset": "18:30",
     "monitorForColors": "",
@@ -370,9 +370,9 @@
     "allowPanelsOnScreenWithoutBar": true,
     "allowPasswordWithFprintd": false,
     "animationDisabled": false,
-    "animationSpeed": 1,
+    "animationSpeed": 1.15,
     "autoStartAuth": false,
-    "avatarImage": "",
+    "avatarImage": "@@HOME@@/.face",
     "boxRadiusRatio": 1,
     "clockFormat": "hh\\nmm",
     "clockStyle": "custom",
@@ -413,7 +413,9 @@
     "lockScreenAnimations": false,
     "lockScreenBlur": 0,
     "lockScreenCountdownDuration": 10000,
-    "lockScreenMonitors": [],
+    "lockScreenMonitors": [
+      "HDMI-A-1"
+    ],
     "lockScreenTint": 0,
     "passwordChars": false,
     "radiusRatio": 1,
@@ -431,7 +433,7 @@
     "telemetryEnabled": false
   },
   "hooks": {
-    "colorGeneration": "@@HOME@@/.local/bin/fix-zen-noctalia-theme",
+    "colorGeneration": "@@HOME@@/.local/bin/fix-zen-noctalia-theme; @@HOME@@/.local/bin/apply-noctalia-hypr-colors",
     "darkModeChange": "",
     "enabled": true,
     "performanceModeDisabled": "",
@@ -462,7 +464,7 @@
     "firstDayOfWeek": -1,
     "hideWeatherCityName": false,
     "hideWeatherTimezone": false,
-    "name": "",
+    "name": "City",
     "showCalendarEvents": true,
     "showCalendarWeather": true,
     "showWeekNumberInCalendar": false,
@@ -653,7 +655,7 @@
         "id": "cava"
       },
       {
-        "enabled": true,
+        "enabled": false,
         "id": "niri"
       },
       {
@@ -667,6 +669,10 @@
       {
         "enabled": false,
         "id": "spicetify"
+      },
+      {
+        "enabled": false,
+        "id": "hyprland"
       }
     ],
     "enableUserTheming": true
@@ -692,45 +698,15 @@
     "enabled": true,
     "favorites": [
       {
-        "appearance": "dark",
-        "colorScheme": "Nord",
-        "darkMode": true,
-        "generationMethod": "rainbow",
-        "paletteColors": [
-          "#bac3ff",
-          "#c3c5dd",
-          "#e5bad8",
-          "#ffb4ab"
-        ],
-        "path": "@@HOME@@/Wallpapers/Olas.jpg",
+        "path": "@@HOME@@/Wallpapers/Cielo.jpg",
         "useWallpaperColors": true
       },
       {
-        "appearance": "dark",
-        "colorScheme": "Nord",
-        "darkMode": true,
-        "generationMethod": "rainbow",
-        "paletteColors": [
-          "#c7bfff",
-          "#c8c3dc",
-          "#ecb8cf",
-          "#ffb4ab"
-        ],
         "path": "@@HOME@@/Wallpapers/Espacio.png",
         "useWallpaperColors": true
       },
       {
-        "appearance": "dark",
-        "colorScheme": "Nord",
-        "darkMode": true,
-        "generationMethod": "rainbow",
-        "paletteColors": [
-          "#96d784",
-          "#bbcbb2",
-          "#a0cfd2",
-          "#ffb4ab"
-        ],
-        "path": "@@HOME@@/Wallpapers/wallhaven-vpymv5.png",
+        "path": "@@HOME@@/Wallpapers/Olas.jpg",
         "useWallpaperColors": true
       }
     ],
@@ -745,23 +721,19 @@
     "panelPosition": "follow_bar",
     "randomIntervalSec": 300,
     "setWallpaperOnAllMonitors": true,
-    "showHiddenFiles": true,
-    "skipStartupTransition": false,
+    "showHiddenFiles": false,
+    "skipStartupTransition": true,
     "solidColor": "#001211",
     "sortOrder": "name_desc",
-    "transitionDuration": 1200,
+    "transitionDuration": 800,
     "transitionEdgeSmoothness": 0.16,
     "transitionType": [
-      "disc",
-      "stripes",
-      "wipe",
-      "honeycomb"
+      "disc"
     ],
     "useOriginalImages": false,
     "useSolidColor": false,
     "useWallhaven": false,
-    "viewMode": "browse",
-    "wallhavenApiKey": "",
+    "viewMode": "recursive",
     "wallhavenCategories": "111",
     "wallhavenOrder": "desc",
     "wallhavenPurity": "100",

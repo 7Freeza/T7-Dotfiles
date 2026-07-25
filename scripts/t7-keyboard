@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# T7 dual-keyboard brain for Hyprland.
+# Policy:
+#   laptop (at-translated-set-2-keyboard) → latam
+#   Redragon K630 (evision-rgb-keyboard*) → ~/.config/xkb/t7-k630-v4-full.xkb
+#   virtual (gsr-ui, avrcp, video-bus)    → disabled (must not be "main")
+set -euo pipefail
+
+T7_KB="${T7_KB:-$HOME/.config/xkb/t7-k630-v4-full.xkb}"
+
+need_hypr() {
+  command -v hyprctl >/dev/null 2>&1 || {
+    echo "t7-keyboard: hyprctl not found (not on Hyprland?)" >&2
+    return 1
+  }
+  hyprctl -j monitors >/dev/null 2>&1 || {
+    echo "t7-keyboard: Hyprland not running" >&2
+    return 1
+  }
+}
+
+status() {
+  need_hypr || return 1
+  echo "=== T7 keyboard status ==="
+  echo "session: ${XDG_CURRENT_DESKTOP:-?} / ${XDG_SESSION_TYPE:-?}"
+  echo "global kb_layout: $(hyprctl getoption input:kb_layout -j 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("str",""))' 2>/dev/null || true)"
+  echo "global kb_file:   $(hyprctl getoption input:kb_file -j 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("str","") or "(empty)")' 2>/dev/null || true)"
+  echo
+  python3 - <<'PY'
+import json, subprocess, sys
+raw = subprocess.check_output(["hyprctl", "devices", "-j"], text=True)
+d = json.loads(raw)
+rows = d.get("keyboards") or []
+if not rows:
+    print("(no keyboards)")
+    sys.exit(0)
+print(f"{'device':42} {'main':5} map")
+print("-" * 72)
+bad_main = []
+for k in rows:
+    name = k.get("name", "?")
+    main = "YES" if k.get("main") else ""
+    km = k.get("active_keymap") or "?"
+    print(f"{name:42} {main:5} {km}")
+    if k.get("main") and any(x in name for x in ("gsr-ui", "avrcp", "video-bus", "virtual")):
+        bad_main.append(name)
+if bad_main:
+    print()
+    print("WARN: Hyprland 'main' is virtual/noise:", ", ".join(bad_main))
+    print("      Physical maps still apply when you type on laptop/K630.")
+    print("      If symbols feel random: quit gsr-ui (GPU Screen Recorder) and/or")
+    print("      disconnect Bluetooth AVRCP remotes, then: t7-keyboard apply")
+else:
+    print()
+    print("OK: main keyboard is not a virtual device.")
+# Explicit physical check
+print()
+print("Physical typing maps:")
+for k in rows:
+    n = k.get("name") or ""
+    km = k.get("active_keymap") or ""
+    if n == "at-translated-set-2-keyboard":
+        ok = "OK" if "Latin" in km else "BAD"
+        print(f"  [{ok}] laptop → {km}")
+    if n.startswith("evision-rgb-keyboard"):
+        ok = "OK" if "K630" in km else "BAD"
+        print(f"  [{ok}] {n} → {km}")
+PY
+  echo
+  if [[ -f "$T7_KB" ]]; then
+    echo "K630 map file: $T7_KB (present)"
+  else
+    echo "ERROR: missing K630 map: $T7_KB" >&2
+  fi
+  lsusb 2>/dev/null | grep -iE 'evision|320f:5000|keyboard' || true
+}
+
+apply() {
+  need_hypr || return 1
+  [[ -f "$T7_KB" ]] || {
+    echo "t7-keyboard: missing $T7_KB" >&2
+    return 1
+  }
+
+  # Re-assert device rules (idempotent). Exact evision names — no regex.
+  hyprctl eval "
+local t7 = [[${T7_KB}]]
+for _, name in ipairs({
+  'gsr-ui-virtual-keyboard',
+  'rz-b110w-(avrcp)',
+  'video-bus',
+}) do
+  hl.device({ name = name, enabled = false })
+end
+hl.device({
+  name = 'at-translated-set-2-keyboard',
+  kb_layout = 'latam',
+  kb_variant = '',
+  kb_options = '',
+  kb_model = 'pc105',
+  kb_file = '',
+})
+for _, name in ipairs({
+  'evision-rgb-keyboard',
+  'evision-rgb-keyboard-1',
+  'evision-rgb-keyboard-2',
+  'evision-rgb-keyboard-3',
+  'evision-rgb-keyboard-4',
+}) do
+  hl.device({
+    name = name,
+    kb_file = t7,
+    kb_layout = '',
+    kb_variant = '',
+    kb_options = '',
+    kb_model = 'pc105',
+  })
+end
+" >/dev/null
+
+  echo "t7-keyboard: applied"
+  status
+}
+
+doctor() {
+  status
+  echo
+  echo "=== expected ==="
+  echo "  laptop  at-translated-set-2-keyboard → Spanish (Latin American)"
+  echo "  K630    evision-rgb-keyboard*        → T7 K630"
+  echo "  gsr-ui / avrcp / video-bus           → disabled / not main"
+  echo
+  echo "=== if wrong ==="
+  echo "  1) hyprctl reload && t7-keyboard apply"
+  echo "  2) unplug/replug K630, then t7-keyboard apply"
+  echo "  3) quit GPU Screen Recorder UI (steals main keyboard)"
+  echo "  4) Caps Lock off; password / symbols use the ACTIVE keyboard map"
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+  status|apply|doctor) "$cmd" ;;
+  *)
+    echo "Usage: t7-keyboard {status|apply|doctor}" >&2
+    exit 2
+    ;;
+esac
