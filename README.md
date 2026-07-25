@@ -13,7 +13,7 @@
 
 <br/>
 
-<img src="screenshots/01-azul.png" alt="T7 rice — cool palette" width="920"/>
+<img src="screenshots/01.png" alt="T7 Hyprland rice" width="920"/>
 
 </div>
 
@@ -26,7 +26,7 @@
 - Dual keyboard policy (laptop **latam** + Redragon K630 custom XKB)
 - Screenshots (`t7-screenshot`), wallpaper cycle, system24 Discord
 - Installer skips secrets (no Vesktop session, no tokens, `@@HOME@@` expand)
-- **New rice gallery** under `screenshots/` (replaces v2 images)
+- Gallery: **Hyprland** desktop shots only (`screenshots/`)
 
 Niri configs remain under `config/niri/` as **legacy / optional** (`DOTFILES_NIRI=1`).
 
@@ -45,19 +45,13 @@ Niri configs remain under `config/niri/` as **legacy / optional** (`DOTFILES_NIR
 
 ## Gallery
 
-### Cool palette
+### Desktop
 
 | | |
 |:---:|:---:|
-| <img src="screenshots/01-azul.png" width="420"/> | <img src="screenshots/02-azul.png" width="420"/> |
-| <img src="screenshots/03-azul.png" width="420"/> | <img src="screenshots/04-azul.png" width="420"/> |
-
-### Warm palette
-
-| | |
-|:---:|:---:|
-| <img src="screenshots/05-amarillo.png" width="420"/> | <img src="screenshots/06-amarillo.png" width="420"/> |
-| <img src="screenshots/07-amarillo.png" width="420"/> | <img src="screenshots/08-amarillo.png" width="420"/> |
+| <img src="screenshots/01.png" width="420"/> | <img src="screenshots/01b.png" width="420"/> |
+| <img src="screenshots/02.png" width="420"/> | <img src="screenshots/02b.png" width="420"/> |
+| <img src="screenshots/03.png" width="420"/> | <img src="screenshots/03b.png" width="420"/> |
 
 ---
 
@@ -113,19 +107,11 @@ Pick a wallpaper once so colors generate. In Vesktop, enable the **system24** th
 ## Layout of this repo
 
 ```text
-config/
-  hypr/           # hyprland.lua + conf + noctalia colors
-  noctalia/       # settings (@@HOME@@), templates, discord.css
-  vesktop/        # system24.theme.css only (+ minimal settings.json)
-  t7/             # display policy
-  xkb/            # Redragon K630 maps
-  systemd/user/   # t7-display.service
-  kitty fish …    # aesthetic stack
-  niri/           # legacy optional
-scripts/          # t7-display, screenshot, keyboard, wallpaper, zen…
-wallpapers/       # shipped walls → ~/Wallpapers (install)
-screenshots/      # README gallery (rice photos)
-docs/             # dependencies, KEYBINDS
+config/       # hypr, noctalia, vesktop system24, t7-display, xkb, apps…
+scripts/      # t7-display, screenshot, keyboard, wallpaper, zen…
+wallpapers/   # walls copied to ~/Wallpapers on install
+screenshots/  # README gallery (Hyprland rice only)
+docs/         # dependencies, KEYBINDS
 install.sh
 ```
 
@@ -137,9 +123,6 @@ install.sh
 - No browser profiles / password DBs  
 - No API keys  
 - Paths use `@@HOME@@` and expand at install time  
-- Machine-specific monitors via `t7-display` + `~/.config/t7/display.conf`
-
-Never commit raw browser profiles or Discord session folders.
 
 ---
 
@@ -148,19 +131,14 @@ Never commit raw browser profiles or Discord session folders.
 - Theme: [`config/vesktop/themes/system24.theme.css`](config/vesktop/themes/system24.theme.css)
 - Noctalia template: [`config/noctalia/templates/discord.css`](config/noctalia/templates/discord.css)
 
-Enable the theme inside Vesktop after install.
-
 ---
 
 ## Multi-monitor & lid
 
 ```bash
 t7-display status
-t7-display ensure
 systemctl --user enable --now t7-display.service
 ```
-
-Policy: `~/.config/t7/display.conf` (defaults eDP-1 / HDMI-A-1).
 
 ---
 
